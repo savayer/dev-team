@@ -1,0 +1,24 @@
+{
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
+  },
+  "permissions": {
+    "deny": [
+      "Bash(git push)",
+      "Bash(git push *)",
+      "Bash(git -C * push*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh release *)",
+      "Bash(npm publish*)",
+      "Bash(pnpm publish*)",
+      "Bash(yarn publish*)",
+      "Bash(kubectl *)",
+      "Bash(helm *)",
+      "Bash(terraform apply*)",
+      "Bash(terraform destroy*)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  }
+}
