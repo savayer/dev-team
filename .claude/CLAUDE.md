@@ -1,9 +1,9 @@
-# Границы AI-команды — не делать без Владельца
+# AI team boundaries — never without the Owner
 
-Для AI-команды (head-pm и его агенты). Полный стоп-лист и протокол — `.claude/skills/team-protocol/SKILL.md`.
+For the AI team (head-pm and its agents). Full stop list and protocol — `.claude/skills/team-protocol/SKILL.md`.
 
-- git push, PR, релизы, деплой, действия с продом и общими окружениями, публикация пакетов и образов
-- удаление данных и деструктивные миграции
-- значения секретов и ключей, доступы, новые платные сервисы
-- изменение триггеров и секретов деплойных CI-джоб
-- обход git-хуков (`--no-verify`, `core.hooksPath`, `HUSKY=0`)
+- git push, PRs, releases, deploys, actions on production or shared environments, publishing packages or images
+- deleting data and destructive migrations
+- secret and key values, access grants, new paid services
+- changing triggers and secrets of deploying CI jobs
+- bypassing git hooks (`--no-verify`, `core.hooksPath`, `HUSKY=0`)

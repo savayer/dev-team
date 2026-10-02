@@ -1,17 +1,17 @@
 ---
 name: auth-safety
-description: Обязательные проверки для кода аутентификации, сессий, токенов и прав доступа. Используй, когда задача или дифф касается входа, сессий, JWT/OAuth, ролей, мультитенантности.
+description: Mandatory checks for authentication, session, token and permission code. Use when a task or diff touches login, sessions, JWT/OAuth, roles, multi-tenancy.
 ---
 
-# Безопасность аутентификации и прав
+# Authentication and permission safety
 
-Fail closed: любая ошибка проверки = отказ.
+Fail closed: any verification error = deny.
 
-- Права проверяются на сервере, в каждой точке входа, рядом с доступом к данным. Проверка на фронте — только UX.
-- tenant/owner берётся из проверенного токена или сессии, никогда из тела или query.
-- JWT: подпись, `iss`, `aud`, `exp`, `nbf`; алгоритм зафиксирован, `alg: none` отклоняется. Проверка в одном месте.
-- OAuth/OIDC: code + PKCE; `state` и `nonce` проверяются на callback; redirect_uri — точное совпадение со списком разрешённых.
-- Cookie сессии: `HttpOnly`, `Secure`, `SameSite`; после логина и смены прав id сессии меняется; logout гасит сессию на сервере.
-- Токены сброса пароля и magic link — одноразовые и короткоживущие.
+- Permissions are checked on the server, at every entry point, next to the data access. A frontend check is UX only.
+- tenant/owner comes from the verified token or session, never from the body or query.
+- JWT: signature, `iss`, `aud`, `exp`, `nbf`; algorithm pinned, `alg: none` rejected. Verification in one place.
+- OAuth/OIDC: code + PKCE; `state` and `nonce` checked on callback; redirect_uri — exact match against an allowlist.
+- Session cookie: `HttpOnly`, `Secure`, `SameSite`; session id rotates after login and permission changes; logout kills the session on the server.
+- Password reset tokens and magic links — single-use and short-lived.
 
-Обязательные тесты: чужой tenant → 403/404; истёкший или подделанный токен → 401; повторное использование кода или ссылки → отказ.
+Mandatory tests: another tenant → 403/404; expired or forged token → 401; reused code or link → denied.

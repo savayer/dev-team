@@ -1,16 +1,16 @@
 ---
 name: integrations
-description: Правила надёжности и безопасности для вебхуков и внешних событий — приём, обработка, отправка. Используй, когда задача или дифф касается вебхуков, обработчиков очередей, исходящих запросов на URL клиента.
+description: Reliability and security rules for webhooks and external events — receiving, processing, sending. Use when a task or diff touches webhooks, queue handlers, outbound requests to customer URLs.
 ---
 
-# Вебхуки и внешние события
+# Webhooks and external events
 
-**Приём.** Подпись проверяется по сырому телу до парсинга, сравнение за постоянное время, окно свежести по timestamp. 2xx отдаём только после того, как событие надёжно сохранено или поставлено в очередь; обработка — асинхронно.
+**Receiving.** Verify the signature over the raw body before parsing, constant-time comparison, a freshness window on the timestamp. Return 2xx only after the event is durably stored or queued; process asynchronously.
 
-**Дубли и порядок.** Считай, что каждое событие придёт дважды и не по порядку: id события сохраняется, дубль отсекается уникальным ограничением в БД; устаревшее событие (по версии или времени) не перезаписывает более новое состояние.
+**Duplicates and ordering.** Assume every event arrives twice and out of order: store the event id, reject duplicates with a unique constraint in the DB; a stale event (by version or time) never overwrites newer state.
 
-**Потери.** Событие не теряется молча: неизвестный тип или ошибка обработки → запись и dead-letter.
+**Loss.** No event is lost silently: unknown type or processing error → logged and dead-lettered.
 
-**Отправка на URL клиента.** Только https, внутренние адреса блокируются (SSRF), редиректы не следуем, есть таймаут.
+**Sending to customer URLs.** https only, internal addresses blocked (SSRF), no following redirects, a timeout.
 
-**Тесты:** дубль, неверный порядок, неверная подпись.
+**Tests:** duplicate, wrong order, invalid signature.

@@ -1,38 +1,38 @@
 ---
 name: design-system
-description: Дизайн-система проекта — токены, типографика, компоненты, брейкпоинты, Do/Don't. Используй при любой работе с UI в команде head-pm. Шаблон — заполни по коду проекта.
+description: The project's design system — tokens, typography, components, breakpoints, Do/Don't. Use for any UI work in the head-pm team. Template — fill it in from the project's code.
 ---
 
-# Дизайн-система
+# Design system
 
-Шаблон: замени `<...>` на значения из кода проекта (Владелец или frontend-lead). Правило: новый цвет, размер или компонент вне этого списка — только как ASSUMPTION в отчёте. Если ниже остались `<...>` — шаблон не заполнен: игнорируй его и бери токены и компоненты из кода.
+Template: replace `<...>` with values from the project's code (the Owner or frontend-lead). Rule: a new color, size or component outside this list — only as an ASSUMPTION in the report. If `<...>` placeholders remain below — the template isn't filled in: ignore it and take tokens and components from the code.
 
-## Токены цвета
+## Color tokens
 
-Имя → роль. В компонентах только токены, без hex.
+Name → role. Components use tokens only, no hex.
 
-- `<--color-primary>` — `<основное действие>`
-- `<--color-danger>` — `<ошибки, удаление>`
+- `<--color-primary>` — `<primary action>`
+- `<--color-danger>` — `<errors, deletion>`
 
-## Типографика
+## Typography
 
-- `<заголовки, текст, подписи: токены или классы>`
+- `<headings, body, captions: tokens or classes>`
 
-## Отступы и радиусы
+## Spacing and radii
 
-- `<шкала отступов, радиусы>`
+- `<spacing scale, radii>`
 
-## Базовые компоненты
+## Base components
 
-- `<Button>` — `<путь>`
-- `<Input>` — `<путь>`
-- `<Modal>` — `<путь>`
+- `<Button>` — `<path>`
+- `<Input>` — `<path>`
+- `<Modal>` — `<path>`
 
-## Брейкпоинты
+## Breakpoints
 
 - `<sm/md/lg>`
 
 ## Do / Don't
 
-- `<делай так>`
-- `<не делай так>`
+- `<do this>`
+- `<don't do this>`
