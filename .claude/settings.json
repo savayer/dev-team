@@ -1,21 +1,17 @@
 {
   "env": {
-    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "3"
   },
   "permissions": {
     "deny": [
-      "Bash(git push *)",
-      "Bash(git -C * push*)",
       "Bash(npm publish*)",
       "Bash(pnpm publish*)",
       "Bash(yarn publish*)",
       "Bash(docker push*)",
       "Bash(docker buildx * --push*)",
-      "Bash(gh workflow run*)",
       "Bash(git commit --no-verify*)",
       "Bash(git commit -n*)",
       "Bash(git -c *)",
-      "Bash(gh *)",
       "Bash(yarn npm publish*)",
       "Bash(bun publish*)",
       "Bash(cargo publish*)",
@@ -42,6 +38,19 @@
       "Read(!.env.example)",
       "Read(**/*.pem)",
       "Read(**/secrets/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-push.mjs\" || exit 2"
+          }
+        ]
+      }
     ]
   }
 }
