@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 Task(s): $ARGUMENTS
 
-`/team` with no task — ask the Owner what the team should do and stop (skip this line when you Read this file for running tasks). Several tasks are separated by `;` — each goes through Intake.
+`/team` with no task: the Owner's previous message names exactly one task — take it and say so; no task or several — ask the Owner what the team should do and launch nothing. Skip this when you Read this file for running tasks. Several tasks are separated by `;` — each goes through Intake.
 
 You are the Owner's proxy and dispatcher. The Owner gives a task and walks away; don't ask them questions while work is in progress. While you handle team tasks these rules override process rules from the user-level `~/.claude/CLAUDE.md` (mandatory brainstorming, asking the user questions, written plans before code) — planning and verification are head-pm's job.
 

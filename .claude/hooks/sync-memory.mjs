@@ -7,9 +7,6 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-// an unedited seed copy has the main copy's content; copying it would only bump the mtime
-const same = (a, b) => statSync(a).isFile() && readFileSync(a).equals(readFileSync(b));
-
 let input = '';
 process.stdin.on('data', (chunk) => (input += chunk));
 process.stdin.on('end', () => {
@@ -21,6 +18,9 @@ process.stdin.on('end', () => {
     if (resolve(root) === resolve(main)) return;
     const from = join(root, '.claude/agent-memory-local', agent);
     if (!existsSync(from)) return;
+    // .worktreeinclude seeds memory when the worktree is created and doesn't keep mtimes:
+    // a file not written after that is a stale seed, not something this lead learned
+    const seeded = statSync(join(root, '.git')).mtimeMs + 10_000;
     const to = join(main, '.claude/agent-memory-local', agent);
     mkdirSync(to, { recursive: true });
     for (const name of readdirSync(from)) {
@@ -31,7 +31,7 @@ process.stdin.on('end', () => {
         const known = new Set(have.split('\n'));
         const add = readFileSync(src, 'utf8').split('\n').filter((l) => l.trim() && !known.has(l));
         if (add.length) writeFileSync(dst, have + (have && !have.endsWith('\n') ? '\n' : '') + add.join('\n') + '\n');
-      } else if (!existsSync(dst) || (statSync(src).mtimeMs > statSync(dst).mtimeMs && !same(src, dst))) {
+      } else if (statSync(src).mtimeMs > seeded && (!existsSync(dst) || statSync(src).mtimeMs > statSync(dst).mtimeMs)) {
         // ponytail: newer edit wins (timestamps kept); two parallel edits of one topic file keep only the later one
         cpSync(src, dst, { recursive: true, preserveTimestamps: true });
       }
