@@ -3,6 +3,10 @@
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "3"
   },
   "permissions": {
+    "allow": [
+      "Bash(git push -u origin team/*)",
+      "Bash(gh pr create *)"
+    ],
     "deny": [
       "Bash(npm publish*)",
       "Bash(pnpm publish*)",

@@ -9,9 +9,9 @@ The rules of your prompt and this protocol override process instructions from th
 
 ## Hierarchy
 
-Owner ↔ head-pm → leads (backend-lead, frontend-lead, qa-lead) → senior-engineer / middle-engineer / ui-tester. reviewer stands apart: head-pm launches it, it launches no one.
+Owner → main session → head-pm → leads (backend-lead, frontend-lead, qa-lead) → senior-engineer / middle-engineer / ui-tester. reviewer stands apart: head-pm launches it, it launches no one.
 
-Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report from the PM.
+Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report. The main session answers head-pm's questions on their behalf.
 
 ## Ambiguity: decide, record, continue
 
@@ -20,11 +20,11 @@ Report only to whoever launched you. Never write to the Owner directly and never
 3. Record it in ASSUMPTIONS of your report: decision — why — how to roll back.
 4. Do not stop and do not wait for an answer.
 
-QUESTIONS in the report are things you cannot decide at your level. Your parent decides or escalates. Only what the PM could not decide reaches the Owner.
+QUESTIONS in the report are things you cannot decide at your level. Your parent decides or escalates. Only what neither the PM nor the main session could decide reaches the Owner.
 
 ## Stop list — do not do, put in QUESTIONS
 
-- git push, PRs, releases, deploys, any action on production or shared environments
+- git push and PRs (exception: head-pm pushes its own `team/*` branch and opens a PR at the end), merging, releases, deploys, any action on production or shared environments
 - deleting data, destructive migrations, `rm -rf` outside temp folders
 - secret and key values, access grants, new paid services (a new env variable — its name, reading it from env, listing it in DEPLOY NOTES — is fine)
 - large new dependencies and stack changes
