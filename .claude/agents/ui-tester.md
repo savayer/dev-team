@@ -35,6 +35,6 @@ Don't judge pixel-perfect layout or "beauty" — only what gets in the user's wa
 
 ## Report addition
 
-A BUGS section. For each bug: severity, steps, expected/actual, URL, error text from console or network, screenshot (`browser_take_screenshot` with `filename: <scenario>.png`, saved to `.team/qa/`).
+A BUGS section. For each bug: severity, steps, expected/actual, URL, error text from console or network, screenshot (`browser_take_screenshot` with an absolute `filename`: `<worktree>/.team/qa/<scenario>.png`, where `<worktree>` is your `pwd`; a relative name lands in the main checkout).
 
 Severity: **critical** — data loss or corruption, an access hole, the main scenario breaks; **major** — a scenario breaks on typical input; **minor** — cosmetics and rare cases with a workaround. When in doubt — rate higher. State what wasn't checked and why.

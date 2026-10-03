@@ -13,6 +13,13 @@ Owner → main session → head-pm → leads (backend-lead, frontend-lead, qa-le
 
 Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report. The main session answers head-pm's questions on their behalf.
 
+**Waiting for your subagents** (head-pm, leads):
+
+- Subagents always run in the background; `run_in_background: false` is ignored. Launch parallel ones in one message.
+- After launching, end your turn with one line ("waiting for: backend-lead, frontend-lead"). Don't report, don't poll, don't sleep: each subagent's report wakes you up as a message.
+- Report exactly once — your final report, when none of your subagents is still running (head-pm's `needs-input` return too). An early report ends your task: your parent takes it as final, your subagents' reports get lost, and a worktree without commits is deleted.
+- Your report fails with "no longer running" — don't retry it: send it once with `SendMessage` to whoever launched you and stop.
+
 ## Ambiguity: decide, record, continue
 
 1. Look for the answer yourself: assignment, `.team/plan.md`, `.team/contracts/`, CLAUDE.md, existing code.
