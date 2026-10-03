@@ -28,13 +28,14 @@ You open `claude`, type `/team <task>` and walk away. The main session hands it 
 | `.claude/skills/design-system/SKILL.md` | Design system template — fill in for your project |
 | `.claude/hooks/guard-push.mjs` | Lets only head-pm push its current `team/<name>` branch (`git push -u origin team/<name>`) and run `gh pr create`; blocks every other push, merges and `gh` calls |
 | `.claude/hooks/sync-memory.mjs` | Copies lead memory from a task's worktree back to the main checkout when a lead finishes |
+| `.claude/.gitignore` | Keeps task worktrees and the leads' local memory out of git |
 | `.claude/settings.json` | Nesting depth 3, the hooks, allow rules for the PM's push and PR, deny rules for publish/deploy commands, `git stash`, hook bypass (`--no-verify`, `core.hooksPath`, `HUSKY=0`) and reading `.env` |
 
 ## Install
 
 1. Update Claude Code (`claude update`). You need a version where subagents can launch their own subagents (since v2.1.219). `node` must be installed — the hooks run on it.
 2. Copy `.claude/` into the project root. If `settings.json` or `CLAUDE.md` already exist there — merge by hand.
-3. Add `.claude/worktrees/`, `.team/` and `.claude/agent-memory-local/` to the project's `.gitignore`. Create `.worktreeinclude` in the project root with the line `.claude/agent-memory-local/` — it seeds each task's worktree with the leads' memory. Commit `.claude/` and `.gitignore` and push them to the default branch yourself, from your terminal (once the hook is in place, Claude can push only head-pm's `team/*` branches). The PM's worktree is cut from `origin`'s default branch, so without this the worktree has no team, hook or rules — and later edits to `.claude/` reach the team only after they're on that branch.
+3. Add `.team/` to the project's `.gitignore` (`.claude/.gitignore` already keeps task worktrees and the leads' local memory out of git). Create `.worktreeinclude` in the project root with the line `.claude/agent-memory-local/` — it seeds each task's worktree with the leads' memory. Commit `.claude/` and `.gitignore` and push them to the default branch yourself, from your terminal (once the hook is in place, Claude can push only head-pm's `team/*` branches). The PM's worktree is cut from `origin`'s default branch, so without this the worktree has no team, hook or rules — and later edits to `.claude/` reach the team only after they're on that branch.
 4. Check the project's `CLAUDE.md` against "What the project CLAUDE.md needs" below. If there's a frontend — fill in `.claude/skills/design-system/SKILL.md`.
 5. Install `gh` and run `gh auth login` — the PM opens PRs with it; without it the task ends at a pushed branch.
 6. No-questions mode. In your **user** `~/.claude/settings.json` (`auto` is ignored in the project file):
