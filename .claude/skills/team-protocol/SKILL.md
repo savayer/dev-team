@@ -78,6 +78,7 @@ Never say "done" without running checks: tests, linter, types, build. Commands c
 
 For those who have memory (leads):
 
+- Memory is local to this machine: never commit it. You start with a copy of the main checkout's memory; what you write is copied back when you finish.
 - At the start, find entries about the files and topics you'll touch. An entry contradicts the code — trust the code and close the entry.
 - Save only what is not in the code or CLAUDE.md: decisions with reasons, pitfalls, non-obvious constraints. One entry — one fact, with date and reason. Never save secrets.
 - Don't turn a one-off observation into a rule: record a pitfall when hit a second time or when the cause is proven.

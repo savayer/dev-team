@@ -27,13 +27,14 @@ You open `claude`, type `/team <task>` and walk away. The main session hands it 
 | `.claude/skills/auth-safety/SKILL.md`, `integrations/SKILL.md` | Checks for auth/permissions and webhooks. Used by backend-lead and reviewer |
 | `.claude/skills/design-system/SKILL.md` | Design system template — fill in for your project |
 | `.claude/hooks/guard-push.mjs` | Lets only head-pm push its current `team/<name>` branch (`git push -u origin team/<name>`) and run `gh pr create`; blocks every other push, merges and `gh` calls |
-| `.claude/settings.json` | Nesting depth 3, the hook, allow rules for the PM's push and PR, deny rules for publish/deploy commands, `git stash`, hook bypass (`--no-verify`, `core.hooksPath`, `HUSKY=0`) and reading `.env` |
+| `.claude/hooks/sync-memory.mjs` | Copies lead memory from a task's worktree back to the main checkout when a lead finishes |
+| `.claude/settings.json` | Nesting depth 3, the hooks, allow rules for the PM's push and PR, deny rules for publish/deploy commands, `git stash`, hook bypass (`--no-verify`, `core.hooksPath`, `HUSKY=0`) and reading `.env` |
 
 ## Install
 
-1. Update Claude Code (`claude update`). You need a version where subagents can launch their own subagents (since v2.1.219). `node` must be installed — the hook runs on it.
+1. Update Claude Code (`claude update`). You need a version where subagents can launch their own subagents (since v2.1.219). `node` must be installed — the hooks run on it.
 2. Copy `.claude/` into the project root. If `settings.json` or `CLAUDE.md` already exist there — merge by hand.
-3. Add `.claude/worktrees/` and `.team/` to the project's `.gitignore`. Commit `.claude/` and push it to the default branch yourself, from your terminal (once the hook is in place, Claude can push only head-pm's `team/*` branches). The PM's worktree is cut from `origin`'s default branch, so without this the worktree has no team, hook or rules — and later edits to `.claude/` reach the team only after they're on that branch.
+3. Add `.claude/worktrees/`, `.team/` and `.claude/agent-memory-local/` to the project's `.gitignore`. Create `.worktreeinclude` in the project root with the line `.claude/agent-memory-local/` — it seeds each task's worktree with the leads' memory. Commit `.claude/` and `.gitignore` and push them to the default branch yourself, from your terminal (once the hook is in place, Claude can push only head-pm's `team/*` branches). The PM's worktree is cut from `origin`'s default branch, so without this the worktree has no team, hook or rules — and later edits to `.claude/` reach the team only after they're on that branch.
 4. Check the project's `CLAUDE.md` against "What the project CLAUDE.md needs" below. If there's a frontend — fill in `.claude/skills/design-system/SKILL.md`.
 5. Install `gh` and run `gh auth login` — the PM opens PRs with it; without it the task ends at a pushed branch.
 6. No-questions mode. In your **user** `~/.claude/settings.json` (`auto` is ignored in the project file):
@@ -41,7 +42,7 @@ You open `claude`, type `/team <task>` and walk away. The main session hands it 
    { "permissions": { "defaultMode": "auto" } }
    ```
    Or launch with `--permission-mode auto`. `acceptEdits` doesn't work for this setup: every Bash command of every engineer becomes a prompt to you. Without `auto` — `bypassPermissions`, and only in an isolated container.
-   Note: in `auto`, writes to lead memory (`.claude/agent-memory/`, the protected `.claude` path) go through the classifier, and after 3 blocks in a row or 20 per session auto pauses and starts asking.
+   Note: in `auto`, writes to lead memory (`.claude/agent-memory-local/`, the protected `.claude` path) go through the classifier, and after 3 blocks in a row or 20 per session auto pauses and starts asking.
 7. Open the project in `claude` interactively once and confirm folder trust — otherwise the project allow rules and the inline MCP of `ui-tester` won't work.
 8. Run `claude` and type `/team <task>`.
 
@@ -82,7 +83,8 @@ Type `/team <task>` (several: separate with `;`) and walk away. Without `/team`,
 - `ui-tester` pulls `@playwright/mcp` via `npx` on first run; if the browser didn't download itself — `npx playwright install chromium`.
 - Better not to install agent collection plugins (e.g. VoltAgent) globally: agents launch others via `Agent` without a list and will see all of them. "Who launches whom" lives in the prompts: `Agent(...)` lists in subagent frontmatter are ignored.
 - Each task's worktree is `.claude/worktrees/agent-<id>` and stays after the task: the PM is resumed there. After merging, remove it with the commands from the final message.
-- Lead memory travels through PRs; two parallel PRs may conflict on one line of `MEMORY.md` — keep both lines.
+- Lead memory is local (`.claude/agent-memory-local/`, not committed): it lives on this machine only. A hook copies what leads learn in a task back to the main checkout when they finish.
+- Moving from committed memory: copy `.claude/agent-memory/*` into `.claude/agent-memory-local/`, then `git rm -r --cached .claude/agent-memory` and commit.
 - At most 3 tasks run at once. The queue lives in the main session: after a restart, queued tasks that hadn't started are lost — resend them.
 - The hook and the deny rules check the command text, so they also fire on a commit message or heredoc that contains `git push`, `/gh `, `git stash` or `--no-verify`. Rephrase or write the text with the Edit tool. Deny rules start with `*` on purpose: a hook that rewrites commands (a wrapper prefix) makes prefix-anchored rules miss. Deny rules and the hook are a safety net, not a sandbox: for a hard guarantee use the [sandbox](https://code.claude.com/docs/en/sandboxing).
 - Your user-level `~/.claude/CLAUDE.md` loads into every agent of the team. The protocol tells them to put team rules first, but a large global file still eats context on every launch, and process rules there (e.g. "always ask the user") can make the main session ask you questions.

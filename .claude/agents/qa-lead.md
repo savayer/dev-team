@@ -4,7 +4,7 @@ description: QA lead — verifies finished features against acceptance criteria 
 tools: Agent, SendMessage, Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 model: opus
 effort: high
-memory: project
+memory: local
 skills:
   - team-protocol
   - api-contract
