@@ -13,12 +13,13 @@ Owner → main session → head-pm → leads (backend-lead, frontend-lead, qa-le
 
 Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report. The main session answers head-pm's questions on their behalf.
 
-**Waiting for your subagents** (head-pm, leads):
+**Launching and waiting for subagents** (head-pm, leads):
 
-- Subagents always run in the background; `run_in_background: false` is ignored. Launch parallel ones in one message.
-- After launching, end your turn with one line ("waiting for: backend-lead, frontend-lead"). Don't report, don't poll, don't sleep: each subagent's report wakes you up as a message.
-- Report exactly once — your final report, when none of your subagents is still running (head-pm's `needs-input` return too). An early report ends your task: your parent takes it as final, your subagents' reports get lost, and a worktree without commits is deleted.
-- Your report fails with "no longer running" — don't retry it: send it once with `SendMessage` to whoever launched you and stop.
+- Launch with `subagent_type` and no `name`. A `name` makes an Agent Teams teammate: you are not counted as waiting for it, and reports of its own subagents go astray.
+- The Agent call usually returns at once ("Async agent launched"): the subagent is still running. Launch parallel ones in one message.
+- After launching, end your turn with one line ("waiting for: backend-lead, frontend-lead"). Don't report, don't poll, don't sleep: each subagent's report wakes you up as a message. A `[handback-send-enforce]` reminder while your subagents run doesn't mean they finished — keep waiting.
+- Report exactly once — your final report, when every subagent you launched or resumed has reported or been stopped. An early report ends your task: your parent takes it as final and your subagents' reports get lost. The only exception is head-pm's `needs-input`, before any subagent is launched.
+- Your report fails with "no longer running" — don't retry it. If you have `SendMessage`, send the report once to whoever launched you; then stop.
 
 ## Ambiguity: decide, record, continue
 
