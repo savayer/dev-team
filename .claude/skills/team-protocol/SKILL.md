@@ -39,6 +39,9 @@ If a task hits the stop list — do everything else and mark that part BLOCKED.
 - Touch only files within your boundaries. Need to change someone else's — describe what and why in the report.
 - Only head-pm writes `.team/plan.md` and `.team/decisions.md`. You pass decisions up through your report.
 - Do not `git commit` — head-pm commits at the end.
+- Run each git command as its own Bash call — no `&&`, `;`, pipes or `cd` around it: compound git commands are refused inside worktrees.
+- No `git stash`: the stash is shared by every worktree and mixes tasks. Need a clean tree — ask your parent.
+- Other tasks may be running in sibling worktrees: don't stop processes you didn't start, don't touch other worktrees or branches.
 
 ## Dependencies
 
@@ -75,6 +78,7 @@ Never say "done" without running checks: tests, linter, types, build. Commands c
 
 For those who have memory (leads):
 
+- Memory is local to this machine: never commit it. You start with a copy of the main checkout's memory; what you write is copied back when you finish.
 - At the start, find entries about the files and topics you'll touch. An entry contradicts the code — trust the code and close the entry.
 - Save only what is not in the code or CLAUDE.md: decisions with reasons, pitfalls, non-obvious constraints. One entry — one fact, with date and reason. Never save secrets.
 - Don't turn a one-off observation into a rule: record a pitfall when hit a second time or when the cause is proven.

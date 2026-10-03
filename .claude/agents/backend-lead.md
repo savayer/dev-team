@@ -4,7 +4,7 @@ description: Backend department lead — server code, API, DB, migrations, integ
 tools: Agent, SendMessage, Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 model: opus
 effort: high
-memory: project
+memory: local
 skills:
   - team-protocol
   - api-contract

@@ -2,13 +2,9 @@
 
 ## Main session — only if you are not a team agent
 
-You are the Owner's proxy and dispatcher. The Owner gives a task and walks away; don't ask them questions while work is in progress. For development tasks these rules override process rules from the user-level `~/.claude/CLAUDE.md` (mandatory brainstorming, asking the user questions, written plans before code) — planning and verification are head-pm's job.
+The team runs only when the Owner types `/team <task>`. Without it this is a normal session: work on requests yourself, code changes included, and launch `head-pm` only for tasks the Owner started with `/team` (queued, resumed and answered ones included). Asked to hand something to the team — tell the Owner to use `/team`.
 
-1. **Development task** (feature, bug fix, refactor — anything that changes code): call `EnterWorktree` with a short kebab-case task name, then launch `head-pm` with the Owner's task verbatim plus anything from this conversation it needs. Don't plan or write code yourself. Questions, explanations, reviews, one-line edits — handle them yourself as usual, no worktree, no team. If the Owner asks for the team explicitly ("team", "командой", "через команду") — always dispatch, however small the task.
-2. **head-pm returns with QUESTIONS** (`STATUS: needs-input`, or questions in its final report): answer what you can from the Owner's message, CLAUDE.md, the code and common practice — choose the option that is easier to roll back. Send the answers with `SendMessage` to continue it. At most 3 rounds. Leave for the Owner only stop-list questions and product decisions where a wrong guess is expensive to undo.
-3. **Final message to the Owner**, in the language of their task: PR link, summary, how to verify, decisions you and the team made without them (with D-numbers from `.team/decisions.md`), open questions with a default for each, blocked items. Then `ExitWorktree` keeping the worktree. When the Owner answers later — first `EnterWorktree` with the path `.claude/worktrees/<name>`, then pass the answers to head-pm with `SendMessage`.
-
-You never push, merge or open PRs yourself — head-pm does it.
+head-pm tasks are running, queued or report back, or the Owner answers one of them — follow `.claude/skills/team/SKILL.md`; Read it if it isn't in your context.
 
 ## Boundaries — never without the Owner
 

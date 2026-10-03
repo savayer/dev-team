@@ -13,9 +13,12 @@
       "Bash(yarn publish*)",
       "Bash(docker push*)",
       "Bash(docker buildx * --push*)",
-      "Bash(git commit --no-verify*)",
-      "Bash(git commit -n*)",
-      "Bash(git -c *)",
+      "Bash(*--no-verify*)",
+      "Bash(*git commit -n*)",
+      "Bash(*core.hooksPath*)",
+      "Bash(*HUSKY=0*)",
+      "Bash(*git stash*)",
+      "Bash(*git -c *)",
       "Bash(yarn npm publish*)",
       "Bash(bun publish*)",
       "Bash(cargo publish*)",
@@ -52,6 +55,17 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-push.mjs\" || exit 2"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "backend-lead|frontend-lead|qa-lead",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-memory.mjs\""
           }
         ]
       }
