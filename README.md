@@ -9,7 +9,7 @@ Owner ↔ main session (plain `claude`)
                 └── reviewer      (read-only, before commit)
 ```
 
-You open `claude`, write the task and walk away. The main session hands it to the PM in a separate git worktree, answers the PM's questions itself and doesn't bother you. At the end you get a pull request from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged.
+You open `claude`, write the task and walk away. The main session hands it to the PM in a separate git worktree, answers the PM's questions itself and doesn't bother you. At the end you get a pull request from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged. Several tasks in one message or while others run: independent ones run in parallel, each in its own worktree; overlapping ones wait until the earlier PR is merged.
 
 ## What's inside
 
@@ -25,16 +25,16 @@ You open `claude`, write the task and walk away. The main session hands it to th
 | `.claude/skills/api-contract/SKILL.md` | Backend ↔ frontend contract template |
 | `.claude/skills/auth-safety/SKILL.md`, `integrations/SKILL.md` | Checks for auth/permissions and webhooks. Used by backend-lead and reviewer |
 | `.claude/skills/design-system/SKILL.md` | Design system template — fill in for your project |
-| `.claude/hooks/guard-push.mjs` | Lets only head-pm run `git push -u origin team/<name>` and `gh pr create`; blocks every other push, merges and `gh` calls |
-| `.claude/settings.json` | Nesting depth 3, the hook, allow rules for the PM's push and PR, deny rules for publish/deploy commands, `--no-verify` and reading `.env` |
+| `.claude/hooks/guard-push.mjs` | Lets only head-pm push its current `team/<name>` branch (`git push -u origin team/<name>`) and run `gh pr create`; blocks every other push, merges and `gh` calls |
+| `.claude/settings.json` | Nesting depth 3, the hook, allow rules for the PM's push and PR, deny rules for publish/deploy commands, `git stash`, hook bypass (`--no-verify`, `core.hooksPath`, `HUSKY=0`) and reading `.env` |
 
 ## Install
 
 1. Update Claude Code (`claude update`). You need a version where subagents can launch their own subagents (since v2.1.219). `node` must be installed — the hook runs on it.
 2. Copy `.claude/` into the project root. If `settings.json` or `CLAUDE.md` already exist there — merge by hand.
-3. Add `.claude/worktrees/` to the project's `.gitignore`. Commit `.claude/` and push it to the default branch yourself, from your terminal (once the hook is in place, Claude can push only head-pm's `team/*` branches). The PM's worktree is cut from `origin`'s default branch, so without this the worktree has no team, hook or rules — and later edits to `.claude/` reach the team only after they're on that branch.
+3. Add `.claude/worktrees/` and `.team/` to the project's `.gitignore`. Commit `.claude/` and push it to the default branch yourself, from your terminal (once the hook is in place, Claude can push only head-pm's `team/*` branches). The PM's worktree is cut from `origin`'s default branch, so without this the worktree has no team, hook or rules — and later edits to `.claude/` reach the team only after they're on that branch.
 4. Check the project's `CLAUDE.md` against "What the project CLAUDE.md needs" below. If there's a frontend — fill in `.claude/skills/design-system/SKILL.md`.
-5. `gh auth login` — the PM opens PRs with `gh`.
+5. Install `gh` and run `gh auth login` — the PM opens PRs with it; without it the task ends at a pushed branch.
 6. No-questions mode. In your **user** `~/.claude/settings.json` (`auto` is ignored in the project file):
    ```json
    { "permissions": { "defaultMode": "auto" } }
@@ -63,7 +63,7 @@ Example:
 
 ## Usage
 
-Write the task to `claude` as usual and walk away. Questions, explanations and one-line edits the main session handles itself; anything that changes code goes to the team. Decisions are logged in `.team/decisions.md`. At the end — a PR link and a report with a "Questions for you" section where each question already has a default. Answer briefly: "1 — yes, 3 — option B" — the PM does the rework and pushes to the same PR. The report comes in the language you wrote the task in.
+Write the task to `claude` as usual and walk away. Questions, explanations and one-line edits the main session handles itself; anything that changes code goes to the team. Decisions are logged in `.team/decisions.md` inside the task's worktree and copied into the PR description. At the end — a PR link and a report with a "Questions for you" section where each question already has a default. Answer briefly: "1 — yes, 3 — option B" — the PM does the rework and pushes to the same PR. The report comes in the language you wrote the task in.
 
 ## Customization
 
@@ -80,6 +80,9 @@ Write the task to `claude` as usual and walk away. Questions, explanations and o
 - Each level is a separate context and separate tokens. For small things the PM works alone or takes one lead (this is in its prompt).
 - `ui-tester` pulls `@playwright/mcp` via `npx` on first run; if the browser didn't download itself — `npx playwright install chromium`.
 - Better not to install agent collection plugins (e.g. VoltAgent) globally: agents launch others via `Agent` without a list and will see all of them. "Who launches whom" lives in the prompts: `Agent(...)` lists in subagent frontmatter are ignored.
-- The hook checks the command text, so it also fires on a commit message or heredoc that contains `git push` or `/gh `. Rephrase or write the text with the Edit tool. Deny rules and the hook are a safety net, not a sandbox: for a hard guarantee use the [sandbox](https://code.claude.com/docs/en/sandboxing).
+- Each task's worktree is `.claude/worktrees/agent-<id>` and stays after the task: the PM is resumed there. After merging, remove it with the commands from the final message.
+- Lead memory travels through PRs; two parallel PRs may conflict on one line of `MEMORY.md` — keep both lines.
+- At most 3 tasks run at once. The queue lives in the main session: after a restart, queued tasks that hadn't started are lost — resend them.
+- The hook and the deny rules check the command text, so they also fire on a commit message or heredoc that contains `git push`, `/gh `, `git stash` or `--no-verify`. Rephrase or write the text with the Edit tool. Deny rules start with `*` on purpose: a hook that rewrites commands (a wrapper prefix) makes prefix-anchored rules miss. Deny rules and the hook are a safety net, not a sandbox: for a hard guarantee use the [sandbox](https://code.claude.com/docs/en/sandboxing).
 - Your user-level `~/.claude/CLAUDE.md` loads into every agent of the team. The protocol tells them to put team rules first, but a large global file still eats context on every launch, and process rules there (e.g. "always ask the user") can make the main session ask you questions.
 - `-p` (headless) mode also works with nested subagents, but there a launching subagent doesn't wait for background children — an interactive session is better for this setup.

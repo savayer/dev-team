@@ -43,6 +43,7 @@ process.stdin.on('end', () => {
   if (push || PR_CREATE.test(cmd)) {
     if (agent !== 'head-pm') deny('only head-pm may push or open PRs');
     if (push) {
+      if (!cwd) deny('no cwd in hook input');
       let current = '';
       try {
         current = execFileSync('git', ['-C', cwd, 'branch', '--show-current'], { encoding: 'utf8' }).trim();

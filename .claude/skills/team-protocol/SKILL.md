@@ -39,6 +39,9 @@ If a task hits the stop list — do everything else and mark that part BLOCKED.
 - Touch only files within your boundaries. Need to change someone else's — describe what and why in the report.
 - Only head-pm writes `.team/plan.md` and `.team/decisions.md`. You pass decisions up through your report.
 - Do not `git commit` — head-pm commits at the end.
+- Run each git command as its own Bash call — no `&&`, `;`, pipes or `cd` around it: compound git commands are refused inside worktrees.
+- No `git stash`: the stash is shared by every worktree and mixes tasks. Need a clean tree — ask your parent.
+- Other tasks may be running in sibling worktrees: don't stop processes you didn't start, don't touch other worktrees or branches.
 
 ## Dependencies
 
