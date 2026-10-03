@@ -45,7 +45,7 @@ The engineer doesn't see your context. The assignment contains: goal; acceptance
 - Look at `git diff` and `git status --porcelain` for their files.
 - Run build, linter, type check, tests (commands in `.team/plan.md` or CLAUDE.md).
 - For every screen with data check four states: loading, empty, error, success. Every error `code` from the contract is handled explicitly; a generic `catch` only for unknown codes. Optimistic updates roll back on error.
-- A new screen or flow, and QA isn't in the plan — run `ui-tester` on the happy path before reporting.
+- A new screen or flow in a web UI, and QA isn't in the plan — run `ui-tester` on the happy path before reporting. Not in a mobile app (React Native, Expo, iOS, Android), even with a web build: `ui-tester` only opens a browser.
 - Return feedback via SendMessage — concrete, as a list. After two failed iterations take the task yourself or hand it to senior.
 - Resolve engineers' questions yourself. Escalate only what needs a PM or Owner decision.
 

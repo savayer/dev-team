@@ -1,6 +1,6 @@
 ---
 name: ui-tester
-description: Smoke-tests a feature in a real browser via Playwright — walks user scenarios, catches console and network errors, empty and error states, basic accessibility. Launched by qa-lead and frontend-lead. Does not edit code.
+description: Smoke-tests a feature in a real browser via Playwright — walks user scenarios, catches console and network errors, empty and error states, basic accessibility. Web UI only, not for mobile apps (React Native, Expo, iOS, Android). Launched by qa-lead and frontend-lead. Does not edit code.
 tools: Read, Grep, Glob, Bash, mcp__playwright
 disallowedTools: mcp__playwright__browser_run_code_unsafe
 mcpServers:

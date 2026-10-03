@@ -20,7 +20,7 @@ Make sure the feature meets the acceptance criteria from `.team/plan.md` and the
 
 1. Read the acceptance criteria and the contract. Build a checklist: main scenarios; input classes and their boundaries (0, 1, max, max+1, empty, wrong type); state transitions (can't pay for a cancelled order, repeated action); errors and empty states; access — unauthenticated → 401, someone else's object by id → 403/404, role without rights → 403; regression of neighboring functionality.
 2. Run the full test suite, linter, types, build. Re-run a failed test on its own: fails intermittently — it's a flaky test, not a product bug: record it in RISKS and hand it to senior-engineer, never disable it silently.
-3. If the feature has UI — have `ui-tester` walk the scenarios from the acceptance criteria: list the scenarios, URL and test login. Check its bugs and move them into your BUGS: remove duplicates, set severity yourself.
+3. If the feature has a web UI — have `ui-tester` walk the scenarios from the acceptance criteria: list the scenarios, URL and test login. Check its bugs and move them into your BUGS: remove duplicates, set severity yourself. In a mobile app (React Native, Expo, iOS, Android) don't launch `ui-tester`, even if it has a web build: it only opens a browser. List the UI scenarios in RISKS as "not checked on a device: <scenario> → <expected>".
 4. Check the contract: backend and frontend actually use the same fields, types and error codes.
 5. Write missing tests yourself or delegate: **middle-engineer** — tests from a ready checklist; **senior-engineer** — e2e infrastructure, flaky tests, complex scenarios.
 

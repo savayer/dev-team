@@ -52,7 +52,7 @@ You open `claude`, type `/team <task>` and walk away. The main session hands it 
 Nothing is strictly required: without CLAUDE.md the team still works — the PM finds commands in `package.json`/`Makefile`/README and records them in `.team/plan.md`. But with it, results are more precise and cheaper:
 
 1. **Verification commands** — install (one that doesn't rewrite the lockfile: `npm ci` and equivalents), tests, linter, types, build. The most important part: VERIFIED and acceptance depend on them. The worktree is a fresh checkout, so the install command runs on every task.
-2. **If there's a UI** — local run command, URL, test login (no real secrets). Without them `ui-tester` only checks what's reachable without logging in.
+2. **If there's a UI** — local run command, URL, test login (no real secrets). Without them `ui-tester` only checks what's reachable without logging in. `ui-tester` checks only web UI: in a mobile app the team lists UI scenarios for you to check on a device.
 3. **Nice to have** — example files (service, endpoint, component, test), stack, structure.
 
 Example:
