@@ -9,13 +9,14 @@ Owner ↔ main session (plain `claude`)
                 └── reviewer      (read-only, before commit)
 ```
 
-You open `claude`, write the task and walk away. The main session hands it to the PM in a separate git worktree, answers the PM's questions itself and doesn't bother you. At the end you get a pull request from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged. Several tasks in one message or while others run: independent ones run in parallel, each in its own worktree; overlapping ones wait until the earlier PR is merged.
+You open `claude`, type `/team <task>` and walk away. The main session hands it to the PM in a separate git worktree, answers the PM's questions itself and doesn't bother you. At the end you get a pull request from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged. Several tasks in one message or while others run: independent ones run in parallel, each in its own worktree; overlapping ones wait until the earlier PR is merged.
 
 ## What's inside
 
 | File | Purpose |
 | --- | --- |
-| `.claude/CLAUDE.md` | Main-session rules (dispatch to head-pm, answer its questions) and team boundaries — also visible to the `auto` mode classifier |
+| `.claude/CLAUDE.md` | Team boundaries and a pointer to `/team` — also visible to the `auto` mode classifier |
+| `.claude/skills/team/SKILL.md` | `/team` — dispatcher rules: intake, queue, answers, final report. Owner-only (`disable-model-invocation`) |
 | `.claude/agents/head-pm.md` | PM: plans, delegates to leads, accepts work, pushes the branch, opens the PR, one report |
 | `.claude/agents/*-lead.md` | Department leads: breakdown, delegation to engineers, review, integration |
 | `.claude/agents/senior-engineer.md`, `middle-engineer.md` | Executors, don't delegate further |
@@ -42,7 +43,7 @@ You open `claude`, write the task and walk away. The main session hands it to th
    Or launch with `--permission-mode auto`. `acceptEdits` doesn't work for this setup: every Bash command of every engineer becomes a prompt to you. Without `auto` — `bypassPermissions`, and only in an isolated container.
    Note: in `auto`, writes to lead memory (`.claude/agent-memory/`, the protected `.claude` path) go through the classifier, and after 3 blocks in a row or 20 per session auto pauses and starts asking.
 7. Open the project in `claude` interactively once and confirm folder trust — otherwise the project allow rules and the inline MCP of `ui-tester` won't work.
-8. Run `claude` and write the task.
+8. Run `claude` and type `/team <task>`.
 
 ## What the project CLAUDE.md needs
 
@@ -63,7 +64,7 @@ Example:
 
 ## Usage
 
-Write the task to `claude` as usual and walk away. Questions, explanations and one-line edits the main session handles itself; anything that changes code goes to the team. Decisions are logged in `.team/decisions.md` inside the task's worktree and copied into the PR description. At the end — a PR link and a report with a "Questions for you" section where each question already has a default. Answer briefly: "1 — yes, 3 — option B" — the PM does the rework and pushes to the same PR. The report comes in the language you wrote the task in.
+Type `/team <task>` (several: separate with `;`) and walk away. Without `/team`, `claude` is a normal session and doesn't involve the team. Decisions are logged in `.team/decisions.md` inside the task's worktree and copied into the PR description. At the end — a PR link and a report with a "Questions for you" section where each question already has a default. Answer briefly: "1 — yes, 3 — option B" — the PM does the rework and pushes to the same PR. The report comes in the language you wrote the task in.
 
 ## Customization
 
