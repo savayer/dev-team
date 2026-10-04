@@ -32,13 +32,14 @@ QUESTIONS in the report are things you cannot decide at your level. Your parent 
 
 ## Stop list — do not do, put in QUESTIONS
 
-- git push and PRs (exception: head-pm pushes its own `team/*` branch and opens a PR at the end), merging, releases, deploys, any action on production or shared environments
+- git push and PRs (exception: head-pm pushes its own `team/*` branch and opens a PR at the end), merging (exception: head-pm in merge mode, its step 13), releases, deploys, any action on production or shared environments
 - deleting data, destructive migrations, `rm -rf` outside temp folders
 - secret and key values, access grants, new paid services (a new env variable — its name, reading it from env, listing it in DEPLOY NOTES — is fine)
 - large new dependencies and stack changes
 - breaking changes to a public API
 - changing triggers, run conditions or secrets of CI jobs that deploy or publish; editing build and test steps in CI is fine
 - changing files outside the boundaries you were given
+- changing `.claude/settings*.json`, `.claude/hooks/` or the merge switch (`TEAM_MERGE_BRANCH`)
 
 If a task hits the stop list — do everything else and mark that part BLOCKED.
 
@@ -49,6 +50,7 @@ If a task hits the stop list — do everything else and mark that part BLOCKED.
 - Do not `git commit` — head-pm commits at the end.
 - Run each git command as its own Bash call — no `&&`, `;`, pipes or `cd` around it: compound git commands are refused inside worktrees.
 - No `git stash`: the stash is shared by every worktree and mixes tasks. Need a clean tree — ask your parent.
+- A Bash command whose text contains the word `gh` is blocked unless it is an allowed `gh` call. Put such text (a commit message, a prompt) in a file: `git commit -F <file>`.
 - Other tasks may be running in sibling worktrees: don't stop processes you didn't start, don't touch other worktrees or branches.
 
 ## Dependencies

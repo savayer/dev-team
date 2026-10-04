@@ -11,8 +11,9 @@ head-pm tasks are running, queued or report back, or the Owner answers one of th
 For the whole team. Full stop list and protocol — `.claude/skills/team-protocol/SKILL.md`.
 
 - Allowed: head-pm pushes its own `team/<task>` branch (`git push -u origin team/<task>`) and opens a PR with `gh pr create`, at the end of a task.
-- Never: merging PRs, pushing any other branch, force pushes, deleting remote branches, releases, deploys, actions on production or shared environments, publishing packages or images
+- Never: merging PRs (exception: head-pm merges its own `team/*` PR into `TEAM_MERGE_BRANCH` when the Owner turned merge mode on), pushing any other branch, force pushes, deleting remote branches, releases, deploys, actions on production or shared environments, publishing packages or images
 - deleting data and destructive migrations
 - secret and key values, access grants, new paid services
 - changing triggers and secrets of deploying CI jobs
 - bypassing git hooks (`--no-verify`, `core.hooksPath`, `HUSKY=0`)
+- changing `.claude/settings*.json`, `.claude/hooks/` or the merge switch (`TEAM_MERGE_BRANCH`)
