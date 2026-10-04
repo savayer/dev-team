@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // PreToolUse guard for Bash. Any git push or gh call must match the allowlist exactly.
 //
-// Push and PR creation: head-pm only; push only the current team/* branch. Merges, force pushes,
-// pushes to other branches, releases, workflows, gh api — blocked.
+// Push and PR creation: head-pm only; push only the current team/* branch. Merge: head-pm only, in
+// merge mode (TEAM_MERGE_BRANCH), its own team/* PR at the tested commit (see MERGE). Other merges,
+// force pushes, pushes to other branches, releases, workflows, gh api — blocked.
+// Guards against mistakes of cooperative agents, not a hostile one: it sees only the command text.
 // Exit 2 blocks the call; the settings entry turns any crash into exit 2 too.
 
 import { execFileSync } from 'node:child_process';
@@ -16,8 +18,10 @@ const ANYONE = [
   full(`gh pr (view|list|diff|checks|status)${ARGS}`),
   full(`gh (auth status|repo view)${ARGS}`),
 ];
-// git (with any options) push, or gh, in command position — not inside commit messages
-const TOUCHES = /\bgit(\s+-\S+(\s+[^-\s]\S*)?)*\s+push\b|(^|[;&|(`'"/]\s*)gh\s/;
+// git (with any options) push, or the word gh anywhere: wrappers (command, timeout, env, nohup),
+// VAR= prefixes, $(which gh), blocks and new lines all reach the exact allowlist below.
+// Text that merely mentions gh (a commit message, a prompt) is blocked too — put it in a file.
+const TOUCHES = /\bgit(\s+-\S+(\s+[^-\s]\S*)?)*\s+push\b|\bgh\b/;
 
 function deny(reason) {
   process.stderr.write(`Blocked by .claude/hooks/guard-push.mjs: ${reason}\n`);
