@@ -33,12 +33,7 @@ function deny(reason) {
 }
 
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], SUB).trim();
-function gh(cwd, ...args) {
-  const env = { ...process.env };
-  delete env.GH_REPO;
-  delete env.GH_HOST;
-  return execFileSync('gh', args, { ...SUB, cwd, env });
-}
+const gh = (cwd, ...args) => execFileSync('gh', args, { ...SUB, cwd });
 
 // merge mode: head-pm merges its own open PR, at the commit it tested, into TEAM_MERGE_BRANCH
 function checkMerge(cwd, branch, sha) {
@@ -50,6 +45,8 @@ function checkMerge(cwd, branch, sha) {
   } catch {
     deny(`TEAM_MERGE_BRANCH is not a valid branch name: "${base}"`);
   }
+  // the merge command runs with the same environment: it would target another repository
+  for (const v of ['GH_REPO', 'GH_HOST']) if (process.env[v]) deny(`${v} is set: the merge would not target this checkout`);
   if (!cwd) deny('no cwd in hook input');
   try {
     if (git(cwd, 'branch', '--show-current') !== branch) deny(`merge only your current branch, not ${branch}`);
@@ -64,15 +61,16 @@ function checkMerge(cwd, branch, sha) {
     if (pr.headRefName !== branch || pr.headRefOid !== sha) deny('PR head is not your branch at your HEAD — push first');
     if (pr.isCrossRepository) deny('PR comes from a fork');
     if (pr.baseRefName !== base) deny(`PR base is ${pr.baseRefName}, merge mode allows only ${base}`);
-    const files = gh(cwd, 'pr', 'diff', branch, '--name-only').split('\n').filter(Boolean);
-    const touched = files.filter((f) => PROTECTED.test(f));
-    if (touched.length) deny(`PR touches ${touched.join(', ')} — the Owner merges such PRs by hand`);
     git(cwd, 'fetch', '-q', 'origin', base);
     try {
       git(cwd, 'merge-base', '--is-ancestor', `origin/${base}`, 'HEAD');
     } catch {
       deny(`base moved: merge origin/${base} into ${branch}, re-run the checks, push, then merge again`);
     }
+    // the PR's diff, from git: both sides of a rename, unquoted names
+    const files = git(cwd, 'diff', '--name-only', '--no-renames', '-z', `origin/${base}...HEAD`).split('\0').filter(Boolean);
+    const touched = files.filter((f) => PROTECTED.test(f));
+    if (touched.length) deny(`PR touches ${touched.join(', ')} — the Owner merges such PRs by hand`);
   } catch (e) {
     deny(`merge check failed (${e.message.split('\n')[0]})`);
   }
