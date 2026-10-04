@@ -88,3 +88,92 @@ test('documented false positives: the word gh in text is blocked', () => {
   assert.equal(runHook("printf '%s' 'gh pr list'", 'claude', { cwd: repo.work }).status, 2);
   assert.equal(runHook('git commit -m "fix gh link"', 'head-pm', { cwd: repo.work }).status, 2);
 });
+
+const prJson = (r, over = {}) => JSON.stringify({ state: 'OPEN', baseRefName: 'develop', headRefName: 'team/a', headRefOid: r.sha, isCrossRepository: false, ...over });
+const mergeCmd = (r, branch = 'team/a', sha = r.sha) => `gh pr merge ${branch} --merge --match-head-commit ${sha}`;
+const env = (r, over = {}) => ({ TEAM_MERGE_BRANCH: 'develop', FAKE_PR_JSON: prJson(r), FAKE_PR_FILES: 'a.txt\n', ...over });
+
+test('merge: the exact form passes when every check holds', () => {
+  const r = runHook(mergeCmd(repo), 'head-pm', { cwd: repo.work, env: env(repo) });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test('merge: switch, agent, branch and commit checks', () => {
+  const cases = [
+    ['switch unset', mergeCmd(repo), 'head-pm', { TEAM_MERGE_BRANCH: undefined }],
+    ['switch empty', mergeCmd(repo), 'head-pm', { TEAM_MERGE_BRANCH: '' }],
+    ['switch starts with -', mergeCmd(repo), 'head-pm', { TEAM_MERGE_BRANCH: '-x' }],
+    ['switch invalid ref', mergeCmd(repo), 'head-pm', { TEAM_MERGE_BRANCH: 'a..b' }],
+    ['switch with spaces', mergeCmd(repo), 'head-pm', { TEAM_MERGE_BRANCH: ' develop' }],
+    ['not head-pm', mergeCmd(repo), 'backend-lead', {}],
+    ['other branch', mergeCmd(repo, 'team/b'), 'head-pm', {}],
+    ['sha is not HEAD', mergeCmd(repo, 'team/a', '0'.repeat(40)), 'head-pm', {}],
+  ];
+  for (const [name, cmd, agent, over] of cases) {
+    const e = env(repo, over);
+    for (const k of Object.keys(e)) if (e[k] === undefined) delete e[k];
+    assert.equal(runHook(cmd, agent, { cwd: repo.work, env: e }).status, 2, name);
+  }
+});
+
+test('merge: PR state checks', () => {
+  const cases = [
+    ['not open', { state: 'MERGED' }],
+    ['other head branch', { headRefName: 'team/b' }],
+    ['head moved', { headRefOid: '1'.repeat(40) }],
+    ['fork', { isCrossRepository: true }],
+    ['other base', { baseRefName: 'main' }],
+  ];
+  for (const [name, over] of cases) {
+    const r = runHook(mergeCmd(repo), 'head-pm', { cwd: repo.work, env: env(repo, { FAKE_PR_JSON: prJson(repo, over) }) });
+    assert.equal(r.status, 2, name);
+  }
+  assert.equal(runHook(mergeCmd(repo), 'head-pm', { cwd: repo.work, env: env(repo, { FAKE_PR_JSON: 'not json' }) }).status, 2, 'bad json');
+  assert.equal(runHook(mergeCmd(repo), 'head-pm', { cwd: repo.work, env: env(repo, { FAKE_GH_FAIL: '1' }) }).status, 2, 'gh fails');
+});
+
+test('merge: protected paths are never auto-merged', () => {
+  const many = Array.from({ length: 149 }, (_, i) => `src/f${i}.ts`).join('\n');
+  for (const p of ['.claude/settings.json', '.github/workflows/ci.yml', '.husky/pre-commit', '.mcp.json', '.worktreeinclude']) {
+    const r = runHook(mergeCmd(repo), 'head-pm', { cwd: repo.work, env: env(repo, { FAKE_PR_FILES: `${many}\n${p}\n` }) });
+    assert.equal(r.status, 2, p);
+  }
+  const ok = runHook(mergeCmd(repo), 'head-pm', { cwd: repo.work, env: env(repo, { FAKE_PR_FILES: 'src/.claude-notes.md\ndocs/a.md\n' }) });
+  assert.equal(ok.status, 0, ok.stderr);
+});
+
+test('merge: other forms and flags are denied', () => {
+  const s = repo.sha;
+  const cases = [
+    'gh pr merge 7 --merge',
+    'gh pr merge https://github.com/o/r/pull/7 --merge',
+    `gh pr merge team/a --merge --match-head-commit ${s} --admin`,
+    `gh pr merge team/a --merge --match-head-commit ${s} --delete-branch`,
+    `gh pr merge team/a --squash --match-head-commit ${s}`,
+    `gh pr merge team/a --rebase --match-head-commit ${s}`,
+    `gh pr merge team/a --auto --merge --match-head-commit ${s}`,
+    `gh pr merge team/a --merge --match-head-commit ${s} -R o/r`,
+    `gh pr merge team/a --merge`,
+    `gh pr merge team/a --merge --match-head-commit ${s} # done`,
+    `gh pr merge team/a --merge --match-head-commit ${s}; true`,
+    `command gh pr merge team/a --merge --match-head-commit ${s}`,
+  ];
+  for (const cmd of cases) assert.equal(runHook(cmd, 'head-pm', { cwd: repo.work, env: env(repo) }).status, 2, cmd);
+});
+
+test('merge: dirty tree is denied', () => {
+  const r = makeRepo();
+  writeFileSync(join(r.work, 'a.txt'), 'changed\n');
+  assert.equal(runHook(mergeCmd(r), 'head-pm', { cwd: r.work, env: env(r) }).status, 2);
+});
+
+test('merge: base moved since the branch caught up → denied with "base moved"', () => {
+  const r = makeRepo();
+  const other = join(r.root, 'other');
+  execFileSync('git', ['clone', '-q', '-b', 'develop', r.origin, other], { env: GIT_ENV, stdio: 'ignore' });
+  git(other, 'commit', '-q', '--allow-empty', '-m', 'someone else merged');
+  git(other, 'push', '-q', 'origin', 'develop');
+  const res = runHook(mergeCmd(r), 'head-pm', { cwd: r.work, env: env(r) });
+  assert.equal(res.status, 2);
+  assert.match(res.stderr, /base moved/);
+});

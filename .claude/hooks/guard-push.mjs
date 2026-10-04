@@ -14,6 +14,10 @@ const full = (src) => new RegExp(`^(?:${src})$`);
 
 const PUSH = full(String.raw`git push (?:-u |--set-upstream )?origin (team/[A-Za-z0-9._/-]+)`);
 const PR_CREATE = full(`gh pr create${ARGS}`);
+const MERGE = full(String.raw`gh pr merge (team/[A-Za-z0-9._/-]+) --merge --match-head-commit ([0-9a-f]{40})`);
+// never auto-merged: they change the Owner's environment on the next pull
+const PROTECTED = /^(\.claude\/|\.github\/|\.husky\/|\.mcp\.json$|\.worktreeinclude$)/;
+const SUB = { encoding: 'utf8', timeout: 20_000 };
 const ANYONE = [
   full(`gh pr (view|list|diff|checks|status)${ARGS}`),
   full(`gh (auth status|repo view)${ARGS}`),
@@ -26,6 +30,52 @@ const TOUCHES = /\bgit(\s+-\S+(\s+[^-\s]\S*)?)*\s+push\b|\bgh\b/;
 function deny(reason) {
   process.stderr.write(`Blocked by .claude/hooks/guard-push.mjs: ${reason}\n`);
   process.exit(2);
+}
+
+const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], SUB).trim();
+function gh(cwd, ...args) {
+  const env = { ...process.env };
+  delete env.GH_REPO;
+  delete env.GH_HOST;
+  return execFileSync('gh', args, { ...SUB, cwd, env });
+}
+
+// merge mode: head-pm merges its own open PR, at the commit it tested, into TEAM_MERGE_BRANCH
+function checkMerge(cwd, branch, sha) {
+  const base = process.env.TEAM_MERGE_BRANCH ?? '';
+  if (!base) deny('merge mode is off (TEAM_MERGE_BRANCH is not set in .claude/settings.local.json)');
+  if (base.startsWith('-')) deny('TEAM_MERGE_BRANCH must not start with -');
+  try {
+    execFileSync('git', ['check-ref-format', '--branch', base], SUB);
+  } catch {
+    deny(`TEAM_MERGE_BRANCH is not a valid branch name: "${base}"`);
+  }
+  if (!cwd) deny('no cwd in hook input');
+  try {
+    if (git(cwd, 'branch', '--show-current') !== branch) deny(`merge only your current branch, not ${branch}`);
+    if (git(cwd, 'rev-parse', 'HEAD') !== sha) deny('--match-head-commit must be your HEAD');
+    try {
+      git(cwd, 'diff', '--quiet', 'HEAD');
+    } catch {
+      deny('commit or discard tracked changes first');
+    }
+    const pr = JSON.parse(gh(cwd, 'pr', 'view', branch, '--json', 'state,baseRefName,headRefName,headRefOid,isCrossRepository'));
+    if (pr.state !== 'OPEN') deny(`PR is ${pr.state}, not OPEN`);
+    if (pr.headRefName !== branch || pr.headRefOid !== sha) deny('PR head is not your branch at your HEAD — push first');
+    if (pr.isCrossRepository) deny('PR comes from a fork');
+    if (pr.baseRefName !== base) deny(`PR base is ${pr.baseRefName}, merge mode allows only ${base}`);
+    const files = gh(cwd, 'pr', 'diff', branch, '--name-only').split('\n').filter(Boolean);
+    const touched = files.filter((f) => PROTECTED.test(f));
+    if (touched.length) deny(`PR touches ${touched.join(', ')} — the Owner merges such PRs by hand`);
+    git(cwd, 'fetch', '-q', 'origin', base);
+    try {
+      git(cwd, 'merge-base', '--is-ancestor', `origin/${base}`, 'HEAD');
+    } catch {
+      deny(`base moved: merge origin/${base} into ${branch}, re-run the checks, push, then merge again`);
+    }
+  } catch (e) {
+    deny(`merge check failed (${e.message.split('\n')[0]})`);
+  }
 }
 
 let input = '';
@@ -43,6 +93,12 @@ process.stdin.on('end', () => {
 
   if (!TOUCHES.test(cmd)) process.exit(0);
   if (ANYONE.some((p) => p.test(cmd))) process.exit(0);
+  const merge = cmd.match(MERGE);
+  if (merge) {
+    if (agent !== 'head-pm') deny('only head-pm may merge, and only in merge mode');
+    checkMerge(cwd, merge[1], merge[2]);
+    process.exit(0);
+  }
   const push = cmd.match(PUSH);
   if (push || PR_CREATE.test(cmd)) {
     if (agent !== 'head-pm') deny('only head-pm may push or open PRs');
@@ -57,7 +113,8 @@ process.stdin.on('end', () => {
     process.exit(0);
   }
   deny(
-    'allowed forms are `git push -u origin team/<name>` and `gh pr create ...` ' +
-      '(head-pm only, run as a standalone command), plus read-only `gh pr view|list|diff|checks|status`',
+    'allowed forms are `git push -u origin team/<name>`, `gh pr create ...` and, in merge mode, ' +
+      '`gh pr merge team/<name> --merge --match-head-commit <sha>` (head-pm only, each as a standalone ' +
+      'command), plus read-only `gh pr view|list|diff|checks|status`. Text that mentions gh goes in a file.',
   );
 });

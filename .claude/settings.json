@@ -5,7 +5,8 @@
   "permissions": {
     "allow": [
       "Bash(git push -u origin team/*)",
-      "Bash(gh pr create *)"
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge team/*)"
     ],
     "deny": [
       "Bash(npm publish*)",
