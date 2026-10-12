@@ -2,9 +2,9 @@
 
 ## Main session — only if you are not a team agent
 
-The team runs only when the Owner types `/team <task>`. Without it this is a normal session: work on requests yourself, code changes included, and launch `dev-team-head-pm` only for tasks the Owner started with `/team` (queued, resumed and answered ones included). Asked to hand something to the team — tell the Owner to use `/team`.
+The team runs only when the Owner types `/team <task>`. Without it this is a normal session: work on requests yourself, code changes included, and launch `dev-team-head-pm` only for tasks the Owner started with `/team` (queued, held, resumed and answered ones included). Asked to hand something to the team — tell the Owner to use `/team`.
 
-dev-team-head-pm tasks are running, queued or report back, or the Owner answers one of them — follow `~/.claude/skills/team/SKILL.md`; Read it if it isn't in your context.
+dev-team-head-pm tasks are running, queued, held or report back, or the Owner answers one of them — follow `~/.claude/skills/team/SKILL.md`; Read it if it isn't in your context.
 
 ## Boundaries of the team — never without the Owner
 

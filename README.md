@@ -10,7 +10,7 @@ Owner ↔ main session (plain `claude`)
 dev-team-explorer — read-only code search for the PM and the leads
 ```
 
-You open `claude` in any git repo, type `/team <task>` and walk away. The main session hands it to the PM in a separate git worktree, answers the PM's questions itself and doesn't bother you. At the end you get a pull request from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged unless you turn on [merge mode](#merge-mode). Several tasks in one message or while others run: independent ones run in parallel, each in its own worktree; overlapping ones wait until the earlier PR is merged — by you, or by the team in merge mode.
+You open `claude` in any git repo, type `/team <task>` and walk away. The main session hands it to the PM in a separate git worktree, answers the PM's questions itself and doesn't bother you. At the end you get a pull request from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged unless you turn on [merge mode](#merge-mode). Several tasks in one message or while others run: they run in parallel, each in its own worktree. Tasks that touch the same files run in parallel only in [merge mode](#merge-mode), where conflicts are resolved when each branch catches up with the base; without it the team warns you and waits until you say to start — now, or after the other task.
 
 The team is installed once per machine, in `~/.claude`, as links to this repo. Projects need nothing in git.
 
@@ -85,7 +85,7 @@ Type `/team <task>` (several: separate with `;`) and walk away. Without `/team`,
 
 ## Merge mode
 
-Off by default: the team opens PRs, you merge them, and overlapping tasks wait for your merge.
+Off by default: the team opens PRs and you merge them. A task that touches the same files as a running one waits for your word: two open PRs on the same files conflict when you merge the second.
 
 To turn it on, add to the project's `.claude/settings.local.json` (not committed, this machine only):
 
@@ -95,7 +95,7 @@ To turn it on, add to the project's `.claude/settings.local.json` (not committed
 
 and start a new `claude` session: the switch is read at session start (check with `printenv TEAM_MERGE_BRANCH`), and `/team` prints "merge mode: on" in its first line. The value must be the team's base (`develop`, or the default branch when there's no `develop`). Never set it to a production branch. Remove the line and start a new session to turn it off.
 
-With it on, the PM merges its own PR with a merge commit once QA and review passed with no critical/major findings, nothing is blocked or skipped, and the branch has caught up with the latest base and re-run the checks green. Open questions don't stop the merge; they're in the report. A PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` is never merged by the team. A queued task starts as soon as the earlier PR is merged. Rework of a merged task is a new `/team` task.
+With it on, the PM merges its own PR with a merge commit once QA and review passed with no critical/major findings, nothing is blocked or skipped, and the branch has caught up with the latest base (the PM resolves merge conflicts there; one it can't call leaves the PR open) and re-run the checks green. Open questions don't stop the merge; they're in the report. A PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` is never merged by the team. A task you asked to run after another one starts as soon as that PR is merged. Rework of a merged task is a new `/team` task.
 
 Roll back with `git revert -m 1 <merge sha>` (the SHA is in the report), newest merge first.
 
@@ -119,7 +119,7 @@ The hook guards against agent mistakes, not a hostile agent: agents run with you
 - Each task's worktree is `.claude/worktrees/agent-<id>` and stays after the task: the PM is resumed there. After merging, remove it with the commands from the final message.
 - Lead memory is per project and local (`.claude/agent-memory-local/`, ignored globally): it lives on this machine only. The PM copies it into each task's worktree; a hook copies what leads learn back to the main checkout when they finish.
 - Moving from committed memory: copy `.claude/agent-memory/*` into `.claude/agent-memory-local/`, then `git rm -r --cached .claude/agent-memory` and commit.
-- At most 3 tasks run at once. The queue lives in the main session: after a restart, queued tasks that hadn't started are lost — resend them.
+- At most 3 tasks run at once; tasks on the same files run in parallel only in merge mode. The queue lives in the main session: after a restart, queued and held tasks that hadn't started are lost — resend them.
 - The guard checks the command text anywhere in it, so it also fires on a commit message or heredoc that contains `git push`, the word `gh`, `git stash`, `--no-verify`, `terraform` and the like. Rephrase or write the text with the Edit tool. It applies to team agents only: your main session — including while it dispatches `/team` tasks — relies on the rules file and `auto` mode, and so does any agent outside the team a team agent might launch against its prompt. A project agent named like a team agent replaces it in that project, guard included. The guard is a safety net, not a sandbox: for a hard guarantee use the [sandbox](https://code.claude.com/docs/en/sandboxing).
 - Your user-level `~/.claude/CLAUDE.md` loads into every agent of the team. The protocol tells them to put team rules first, but a large global file still eats context on every launch, and process rules there (e.g. "always ask the user") can make the main session ask you questions.
 - `-p` (headless) mode also works with nested subagents, but there a launching subagent doesn't wait for background children — an interactive session is better for this setup.
