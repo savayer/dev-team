@@ -1,5 +1,5 @@
 ---
-name: auth-safety
+name: dev-team-auth-safety
 description: Mandatory checks for authentication, session, token and permission code. Use when a task or diff touches login, sessions, JWT/OAuth, roles, multi-tenancy.
 ---
 

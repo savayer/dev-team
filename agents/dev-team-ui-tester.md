@@ -1,6 +1,6 @@
 ---
-name: ui-tester
-description: Smoke-tests a feature in a real browser via Playwright — walks user scenarios, catches console and network errors, empty and error states, basic accessibility. Web UI only, not for mobile apps (React Native, Expo, iOS, Android). Launched by qa-lead and frontend-lead. Does not edit code.
+name: dev-team-ui-tester
+description: Smoke-tests a feature in a real browser via Playwright — walks user scenarios, catches console and network errors, empty and error states, basic accessibility. Web UI only, not for mobile apps (React Native, Expo, iOS, Android). Launched by dev-team-qa-lead and dev-team-frontend-lead. Does not edit code.
 tools: Read, Grep, Glob, Bash, mcp__playwright
 disallowedTools: mcp__playwright__browser_run_code_unsafe
 mcpServers:
@@ -11,7 +11,13 @@ mcpServers:
 model: sonnet
 effort: medium
 skills:
-  - team-protocol
+  - dev-team-protocol
+hooks:
+  PreToolUse:
+    - matcher: "Bash|Read|Grep|Edit|Write"
+      hooks:
+        - type: command
+          command: 'node "$HOME/.claude/dev-team/hooks/guard.mjs" || exit 2'
 ---
 
 You are a UI tester. Assignment and report go to the lead who launched you. You don't delegate and you don't edit product code or tests.

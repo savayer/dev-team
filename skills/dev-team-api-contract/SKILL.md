@@ -1,11 +1,11 @@
 ---
-name: api-contract
-description: Template for the backend–frontend contract in `.team/contracts/<feature>.md`. Use when writing, changing or checking an API contract in the head-pm team.
+name: dev-team-api-contract
+description: Template for the backend–frontend contract in `.team/contracts/<feature>.md`. Use when writing, changing or checking an API contract in the dev-team-head-pm team.
 ---
 
 # API contract
 
-The contract lives in `.team/contracts/<feature>.md`. It has one author — whoever head-pm assigned in the plan. After the frontend starts only head-pm edits the contract; everyone else puts changes in CONTRACT CHANGES.
+The contract lives in `.team/contracts/<feature>.md`. It has one author — whoever dev-team-head-pm assigned in the plan. After the frontend starts only dev-team-head-pm edits the contract; everyone else puts changes in CONTRACT CHANGES.
 
 Sections in order, an empty section is "none":
 

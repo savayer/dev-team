@@ -1,5 +1,5 @@
 ---
-name: integrations
+name: dev-team-integrations
 description: Reliability and security rules for webhooks and external events — receiving, processing, sending. Use when a task or diff touches webhooks, queue handlers, outbound requests to customer URLs.
 ---
 

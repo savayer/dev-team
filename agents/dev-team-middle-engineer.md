@@ -1,11 +1,17 @@
 ---
-name: middle-engineer
+name: dev-team-middle-engineer
 description: Middle engineer for tasks with a clear spec and an example — CRUD, components per the design system, tests, mechanical refactoring. Launched by department leads (backend, frontend, qa).
 tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 model: sonnet
 effort: medium
 skills:
-  - team-protocol
+  - dev-team-protocol
+hooks:
+  PreToolUse:
+    - matcher: "Bash|Read|Grep|Edit|Write"
+      hooks:
+        - type: command
+          command: 'node "$HOME/.claude/dev-team/hooks/guard.mjs" || exit 2'
 ---
 
 You are a middle engineer. You take the assignment from your department lead and return the report to them in the team protocol format. You don't delegate further.

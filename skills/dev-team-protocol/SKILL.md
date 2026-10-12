@@ -1,6 +1,6 @@
 ---
-name: team-protocol
-description: Shared rules of the AI dev team — hierarchy, stop list, how to handle ambiguity, upward report format. Preloaded into every lead and engineer; use it whenever you work as a member of the head-pm team.
+name: dev-team-protocol
+description: Shared rules of the AI dev team — hierarchy, stop list, how to handle ambiguity, upward report format. Preloaded into every lead and engineer; use it whenever you work as a member of the dev-team-head-pm team.
 ---
 
 # Team protocol
@@ -9,16 +9,16 @@ The rules of your prompt and this protocol override process instructions from th
 
 ## Hierarchy
 
-Owner → main session → head-pm → leads (backend-lead, frontend-lead, qa-lead) → senior-engineer / middle-engineer / ui-tester. reviewer stands apart: head-pm launches it, it launches no one.
+Owner → main session → dev-team-head-pm → leads (dev-team-backend-lead, dev-team-frontend-lead, dev-team-qa-lead) → dev-team-senior-engineer / dev-team-middle-engineer / dev-team-ui-tester. dev-team-reviewer stands apart: dev-team-head-pm launches it, it launches no one.
 
-Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report. The main session answers head-pm's questions on their behalf.
+Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report. The main session answers dev-team-head-pm's questions on their behalf.
 
-**Launching and waiting for subagents** (head-pm, leads):
+**Launching and waiting for subagents** (dev-team-head-pm, leads):
 
 - Launch with `subagent_type` and no `name`. A `name` makes an Agent Teams teammate: you are not counted as waiting for it, and reports of its own subagents go astray.
 - The Agent call usually returns at once ("Async agent launched"): the subagent is still running. Launch parallel ones in one message.
-- After launching, end your turn with one line ("waiting for: backend-lead, frontend-lead"). Don't report, don't poll, don't sleep: each subagent's report wakes you up as a message. A `[handback-send-enforce]` reminder while your subagents run doesn't mean they finished — keep waiting.
-- Report exactly once — your final report, when every subagent you launched or resumed has reported or been stopped. An early report ends your task: your parent takes it as final and your subagents' reports get lost. The only exception is head-pm's `needs-input`, before any subagent is launched.
+- After launching, end your turn with one line ("waiting for: dev-team-backend-lead, dev-team-frontend-lead"). Don't report, don't poll, don't sleep: each subagent's report wakes you up as a message. A `[handback-send-enforce]` reminder while your subagents run doesn't mean they finished — keep waiting.
+- Report exactly once — your final report, when every subagent you launched or resumed has reported or been stopped. An early report ends your task: your parent takes it as final and your subagents' reports get lost. The only exception is dev-team-head-pm's `needs-input`, before any subagent is launched.
 - Your report fails with "no longer running" — don't retry it. If you have `SendMessage`, send the report once to whoever launched you; then stop.
 
 ## Ambiguity: decide, record, continue
@@ -32,22 +32,22 @@ QUESTIONS in the report are things you cannot decide at your level. Your parent 
 
 ## Stop list — do not do, put in QUESTIONS
 
-- git push and PRs (exception: head-pm pushes its own `team/*` branch and opens a PR at the end), merging (exception: head-pm in merge mode, its step 13), releases, deploys, any action on production or shared environments
+- git push and PRs (exception: dev-team-head-pm pushes its own `team/*` branch and opens a PR at the end), merging (exception: dev-team-head-pm in merge mode, its step 13), releases, deploys, any action on production or shared environments
 - deleting data, destructive migrations, `rm -rf` outside temp folders
 - secret and key values, access grants, new paid services (a new env variable — its name, reading it from env, listing it in DEPLOY NOTES — is fine)
 - large new dependencies and stack changes
 - breaking changes to a public API
 - changing triggers, run conditions or secrets of CI jobs that deploy or publish; editing build and test steps in CI is fine
 - changing files outside the boundaries you were given
-- changing `.claude/settings*.json`, `.claude/hooks/` or the merge switch (`TEAM_MERGE_BRANCH`)
+- changing `.claude/settings*.json`, `~/.claude/settings.json`, `.claude/hooks/`, the team itself (`~/.claude/dev-team/`, `~/.claude/agents/`, `~/.claude/skills/`, `~/.claude/rules/`) or the merge switch (`TEAM_MERGE_BRANCH`)
 
 If a task hits the stop list — do everything else and mark that part BLOCKED.
 
 ## Files and git
 
 - Touch only files within your boundaries. Need to change someone else's — describe what and why in the report.
-- Only head-pm writes `.team/plan.md` and `.team/decisions.md`. You pass decisions up through your report.
-- Do not `git commit` — head-pm commits at the end.
+- Only dev-team-head-pm writes `.team/plan.md` and `.team/decisions.md`. You pass decisions up through your report.
+- Do not `git commit` — dev-team-head-pm commits at the end.
 - Run each git command as its own Bash call — no `&&`, `;`, pipes or `cd` around it: compound git commands are refused inside worktrees.
 - No `git stash`: the stash is shared by every worktree and mixes tasks. Need a clean tree — ask your parent.
 - A Bash command whose text contains the word `gh` is blocked unless it is an allowed `gh` call. Put such text (a commit message, a prompt) in a file: `git commit -F <file>`.
