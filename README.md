@@ -31,6 +31,9 @@ The team is installed once per machine, in `~/.claude`, as links to this repo. P
 | `skills/dev-team-*/` | Shared protocol, backend ↔ frontend contract, auth and webhook checks |
 | `hooks/guard.mjs` | Guard for team agents only. Only the PM may push its `team/*` branch, open a PR and, in merge mode, merge it. Blocks every other push, merge and `gh` call, publishing, cluster and infrastructure changes, hook bypass, `git stash`, touching `.env*`, `*.pem`, `secrets/` |
 | `hooks/sync-memory.mjs` | Copies lead memory from a task's worktree back to the main checkout |
+| `hooks/worktree-slot.mjs` | `WorktreeCreate` hook of a [multi-repo workspace](#multi-repo-workspace): an empty slot per isolated agent |
+| `hooks/slot-init.mjs` | Run by the PM: turns its slot into a worktree of the task's repo on the base |
+| `hooks/merge-branch.mjs` | Merge mode's base for a checkout, shared by the guard, the PM and `/team`: the env in a single repo, the repo's own settings in a multi-repo workspace |
 | `templates/design-system/` | Design system skill template — copy into a project's `.claude/skills/design-system/` |
 | `install.mjs` | Links the team into `~/.claude` |
 
@@ -81,6 +84,29 @@ and start a new session — `/team` prints "merge mode: on" in its first line. T
 The PM then merges its own PR with a merge commit once QA and review passed with no critical/major findings, nothing is blocked, and the branch has caught up with the latest base — conflicts resolved, checks green again. Open questions don't stop the merge. A PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` is never merged by the team. Roll back with `git revert -m 1 <merge sha>` (the SHA is in the report), newest merge first.
 
 The guard catches agent mistakes, not a hostile agent: agents run with your GitHub credentials. For a hard guarantee use a bot account and branch protection.
+
+## Multi-repo workspace
+
+One session for several repos kept side by side in a plain folder that isn't a git repo itself:
+
+```
+~/work/acme/                      ← run claude here
+├── .claude/settings.json         ← the WorktreeCreate hook
+├── backend/                      ← git repos, each with an origin
+├── frontend/
+└── .team-worktrees/agent-<id>/   ← task worktrees, made by the team
+```
+
+`/team` picks each task's repo from the ticket and asks when that's unclear. Tasks for different repos run in parallel. Setup:
+
+1. Add the hook to `<workspace>/.claude/settings.json`:
+   ```json
+   {"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"node \"$HOME/.claude/dev-team/hooks/worktree-slot.mjs\""}]}]}}
+   ```
+2. Launch `claude` in the workspace interactively once and trust the folder: hooks of an untrusted folder don't run.
+3. Merge mode is per repo: put the `TEAM_MERGE_BRANCH` line into `<repo>/.claude/settings.local.json`. The workspace's own env is ignored, so a repo without the line has merge mode off.
+
+Every isolated agent of the session gets an empty slot `<workspace>/.team-worktrees/agent-<id>`. The PM turns it into a worktree of its repo, on `develop` or the default branch, and copies the repo's `.worktreeinclude` files. The hook only does this for the workspace: sessions opened inside a repo are unaffected.
 
 ## Customization
 
