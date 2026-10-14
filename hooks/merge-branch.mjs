@@ -3,14 +3,15 @@
 // One resolver for guard.mjs, dev-team-head-pm (step 13) and the /team dispatcher:
 //   node merge-branch.mjs               for the current folder
 //   node merge-branch.mjs --repo <dir>  for a repo of a multi-repo workspace
-// Multi-repo (a worktree right under .team-worktrees/, or --repo): only the repo's own
+// Multi-repo (a worktree right under .team-worktrees/, --repo, or a hook whose CLAUDE_PROJECT_DIR is a
+// non-git folder): only the repo's own
 // <main checkout>/.claude/settings.local.json → env.TEAM_MERGE_BRANCH counts; the session env belongs
 // to the workspace and is ignored. Single repo: the env, which Claude Code fills from the project settings.
 // Prints the value or nothing. Validation stays with the guard.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, realpathSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const git = (cwd, ...args) =>
@@ -34,6 +35,15 @@ export function mergeBranch({ cwd, repo, env = process.env } = {}) {
     if (cwd) top = git(cwd, 'rev-parse', '--show-toplevel'); // `git -C ''` would mean this process's folder
   } catch {}
   if (top && basename(dirname(top)) === '.team-worktrees') return repoSetting(cwd);
+  // hooks get the session folder; agents' Bash doesn't, so a slot is recognised by its path above
+  const ws = env.CLAUDE_PROJECT_DIR;
+  if (ws && isAbsolute(ws)) {
+    let multi = true;
+    try {
+      multi = git(ws, 'rev-parse', '--is-inside-work-tree') !== 'true';
+    } catch {}
+    if (multi) return top ? repoSetting(cwd) : '';
+  }
   return env.TEAM_MERGE_BRANCH ?? '';
 }
 

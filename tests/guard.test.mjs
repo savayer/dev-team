@@ -63,7 +63,7 @@ chmodSync(join(BIN, 'gh'), 0o755);
 
 export function runHook(command, agent_type, { cwd, env = {}, tool_name = 'Bash', tool_input = { command } } = {}) {
   const base = { ...process.env, PATH: `${BIN}:${process.env.PATH}` };
-  for (const k of ['TEAM_MERGE_BRANCH', 'GH_REPO', 'GH_HOST']) delete base[k];
+  for (const k of ['TEAM_MERGE_BRANCH', 'GH_REPO', 'GH_HOST', 'CLAUDE_PROJECT_DIR']) delete base[k];
   const r = spawnSync('node', [HOOK], {
     cwd: cwd ?? process.cwd(),
     input: JSON.stringify({ tool_name, tool_input, agent_type, cwd: cwd ?? '' }),
@@ -320,6 +320,7 @@ test('merge-branch CLI: --repo names a repo of the workspace, otherwise the curr
   const cli = (cwd, args, env = {}, script = MERGE_BRANCH) => {
     const e = { ...process.env, ...env };
     if (!('TEAM_MERGE_BRANCH' in env)) delete e.TEAM_MERGE_BRANCH;
+    delete e.CLAUDE_PROJECT_DIR;
     const res = spawnSync('node', [script, ...args], { cwd, env: e, encoding: 'utf8' });
     assert.equal(res.stderr, '');
     return res.stdout;
@@ -340,4 +341,30 @@ test('merge in a multi-repo slot: the repo\'s settings.local.json decides, the s
   assert.equal(res.status, 0, res.stderr);
   settings(r.main, 'main');
   denied(r, mergeCmd(r), 'dev-team-head-pm', {}, /merge mode allows only main/, 'the repo\'s base, not the env\'s');
+});
+
+test('merge branch: CLAUDE_PROJECT_DIR of a non-git workspace means multi-repo outside a slot too', () => {
+  const r = makeRepo();
+  const on = { TEAM_MERGE_BRANCH: 'develop', CLAUDE_PROJECT_DIR: r.root };
+  assert.equal(mergeBranch({ cwd: r.work, env: on }), '', 'a repo without the line');
+  assert.equal(mergeBranch({ cwd: r.root, env: on }), '', 'cwd not in a repo');
+  settings(r.work, 'main');
+  assert.equal(mergeBranch({ cwd: r.work, env: on }), 'main');
+  assert.equal(mergeBranch({ cwd: r.work, env: { ...on, CLAUDE_PROJECT_DIR: r.work } }), 'develop', 'a git repo: single repo');
+  assert.equal(mergeBranch({ cwd: r.work, env: { ...on, CLAUDE_PROJECT_DIR: 'ws' } }), 'develop', 'not absolute: ignored');
+});
+
+test('merge in a multi-repo session from a main checkout: the workspace env is ignored', () => {
+  const r = makeRepo();
+  const ws = { CLAUDE_PROJECT_DIR: r.root }; // the non-git folder holding the repo
+  denied(r, mergeCmd(r), 'dev-team-head-pm', ws, /merge mode is off/, 'workspace env, no line in the repo');
+  settings(r.work, 'develop');
+  const res = runHook(mergeCmd(r), 'dev-team-head-pm', { cwd: r.work, env: { ...ws, FAKE_PR_JSON: prJson(r) } });
+  assert.equal(res.status, 0, res.stderr);
+});
+
+test('merge in a single-repo session: CLAUDE_PROJECT_DIR is the repo, the env decides as before', () => {
+  const r = makeRepo();
+  const res = runHook(mergeCmd(r), 'dev-team-head-pm', { cwd: r.work, env: env(r, { CLAUDE_PROJECT_DIR: r.work }) });
+  assert.equal(res.status, 0, res.stderr);
 });
