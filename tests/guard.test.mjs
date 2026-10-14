@@ -2,13 +2,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mergeBranch } from '../hooks/merge-branch.mjs';
 
 // GUARD_HOOK points the suite at a mutated copy (mutation checks)
 const HOOK = process.env.GUARD_HOOK ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'hooks', 'guard.mjs');
+const MERGE_BRANCH = join(dirname(fileURLToPath(import.meta.url)), '..', 'hooks', 'merge-branch.mjs');
 const GIT_ENV = { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.com', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.com' };
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', env: GIT_ENV }).trim();
 
@@ -20,8 +22,9 @@ function writeFiles(dir, files) {
 }
 
 // origin (bare, default develop; `base` files committed there) ← clone `work` on team/a:
-// `mv` renames and `team` files written in one commit on top of develop, pushed
-export function makeRepo({ base = {}, team = { 'a.txt': 'a\n' }, mv } = {}) {
+// `mv` renames and `team` files written in one commit on top of develop, pushed.
+// `slot`: team/a moves to <root>/.team-worktrees/agent-1 (`work`), a worktree of the clone (`main`), as in a multi-repo workspace
+export function makeRepo({ base = {}, team = { 'a.txt': 'a\n' }, mv, slot = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'guard-'));
   const origin = join(root, 'origin.git');
   const work = join(root, 'work');
@@ -40,7 +43,12 @@ export function makeRepo({ base = {}, team = { 'a.txt': 'a\n' }, mv } = {}) {
   git(work, 'add', '-A');
   git(work, 'commit', '-q', '--allow-empty', '-m', 'a');
   git(work, 'push', '-q', '-u', 'origin', 'team/a');
-  return { root, origin, work, sha: git(work, 'rev-parse', 'HEAD') };
+  const sha = git(work, 'rev-parse', 'HEAD');
+  if (!slot) return { root, origin, work, sha };
+  const wt = join(root, '.team-worktrees', 'agent-1');
+  git(work, 'checkout', '-q', '--detach');
+  git(work, 'worktree', 'add', '-q', wt, 'team/a');
+  return { root, origin, main: work, work: wt, sha };
 }
 
 // fake gh first on PATH: answers `pr view` from env, fails on FAKE_GH_FAIL
@@ -276,4 +284,60 @@ test('merge: base moved since the branch caught up → denied with "base moved"'
   git(other, 'commit', '-q', '--allow-empty', '-m', 'someone else merged');
   git(other, 'push', '-q', 'origin', 'develop');
   denied(r, mergeCmd(r), 'dev-team-head-pm', {}, /base moved/, 'base moved');
+});
+
+const settings = (dir, value) => writeFiles(dir, { '.claude/settings.local.json': JSON.stringify({ env: { TEAM_MERGE_BRANCH: value } }) });
+
+test('merge branch: a single repo takes the session env, never the file', () => {
+  const r = makeRepo();
+  settings(r.work, 'main');
+  assert.equal(mergeBranch({ cwd: r.work, env: { TEAM_MERGE_BRANCH: 'develop' } }), 'develop');
+  assert.equal(mergeBranch({ cwd: r.work, env: {} }), '');
+  assert.equal(mergeBranch({ cwd: '', env: { TEAM_MERGE_BRANCH: 'develop' } }), 'develop');
+});
+
+test('merge branch: in a multi-repo slot only the repo\'s settings.local.json counts', () => {
+  const r = makeRepo({ slot: true });
+  const on = { TEAM_MERGE_BRANCH: 'develop' };
+  assert.equal(mergeBranch({ cwd: r.work, env: on }), '', 'no line: off, even with the env set');
+  writeFiles(r.main, { '.claude/settings.local.json': '{ not json' });
+  assert.equal(mergeBranch({ cwd: r.work, env: on }), '', 'bad json: off');
+  settings(r.main, 7);
+  assert.equal(mergeBranch({ cwd: r.work, env: on }), '', 'not a string: off');
+  settings(r.main, 'develop');
+  assert.equal(mergeBranch({ cwd: r.work, env: {} }), 'develop');
+  mkdirSync(join(r.work, 'src'));
+  assert.equal(mergeBranch({ cwd: join(r.work, 'src'), env: { TEAM_MERGE_BRANCH: 'main' } }), 'develop', 'from a subfolder');
+  assert.equal(mergeBranch({ repo: r.main, env: { TEAM_MERGE_BRANCH: 'main' } }), 'develop', 'repo given');
+});
+
+test('merge-branch CLI: --repo names a repo of the workspace, otherwise the current folder', () => {
+  const r = makeRepo({ slot: true });
+  const plain = makeRepo();
+  settings(r.main, 'develop');
+  const link = join(r.root, 'dev-team');
+  symlinkSync(join(dirname(MERGE_BRANCH), '..'), link); // installed as ~/.claude/dev-team → this repo
+  const cli = (cwd, args, env = {}, script = MERGE_BRANCH) => {
+    const e = { ...process.env, ...env };
+    if (!('TEAM_MERGE_BRANCH' in env)) delete e.TEAM_MERGE_BRANCH;
+    const res = spawnSync('node', [script, ...args], { cwd, env: e, encoding: 'utf8' });
+    assert.equal(res.stderr, '');
+    return res.stdout;
+  };
+  assert.equal(cli(r.root, ['--repo', r.main], { TEAM_MERGE_BRANCH: 'main' }), 'develop\n');
+  assert.equal(cli(r.root, ['--repo', plain.work], { TEAM_MERGE_BRANCH: 'develop' }), '', '--repo ignores the env');
+  assert.equal(cli(r.work, []), 'develop\n', 'a slot');
+  assert.equal(cli(r.work, [], {}, join(link, 'hooks', 'merge-branch.mjs')), 'develop\n', 'through the install symlink');
+  assert.equal(cli(plain.work, [], { TEAM_MERGE_BRANCH: 'develop' }), 'develop\n', 'a single repo: the env');
+  assert.equal(cli(plain.work, []), '');
+});
+
+test('merge in a multi-repo slot: the repo\'s settings.local.json decides, the session env is ignored', () => {
+  const r = makeRepo({ slot: true });
+  denied(r, mergeCmd(r), 'dev-team-head-pm', {}, /merge mode is off/, 'env set, no line in the repo');
+  settings(r.main, 'develop');
+  const res = runHook(mergeCmd(r), 'dev-team-head-pm', { cwd: r.work, env: { FAKE_PR_JSON: prJson(r) } });
+  assert.equal(res.status, 0, res.stderr);
+  settings(r.main, 'main');
+  denied(r, mergeCmd(r), 'dev-team-head-pm', {}, /merge mode allows only main/, 'the repo\'s base, not the env\'s');
 });

@@ -12,6 +12,7 @@
 // merge is approved explicitly, so auto mode doesn't stop it.
 
 import { execFileSync } from 'node:child_process';
+import { mergeBranch } from './merge-branch.mjs';
 
 const ARGS = String.raw`( [^;&|\x60$<>\\\n]*)?`; // plain arguments, no chaining or substitution
 const full = (src) => new RegExp(`^(?:${src})$`);
@@ -59,9 +60,15 @@ const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], SUB).tri
 const gh = (cwd, ...args) => execFileSync('gh', args, { ...SUB, cwd });
 
 // merge mode: dev-team-head-pm merges its own open PR, at the commit it tested, into TEAM_MERGE_BRANCH
+// (merge-branch.mjs: the session env, or the repo's own settings in a multi-repo workspace)
 function checkMerge(cwd, branch, sha) {
-  const base = process.env.TEAM_MERGE_BRANCH ?? '';
-  if (!base) deny('merge mode is off (TEAM_MERGE_BRANCH is not set in .claude/settings.local.json)');
+  const base = mergeBranch({ cwd });
+  if (!base) {
+    deny(
+      'merge mode is off (TEAM_MERGE_BRANCH is not set: in .claude/settings.local.json of the project for a ' +
+        "single repo, of the task's repo in a multi-repo workspace)",
+    );
+  }
   if (base.startsWith('-')) deny('TEAM_MERGE_BRANCH must not start with -');
   try {
     execFileSync('git', ['check-ref-format', '--branch', base], SUB);
