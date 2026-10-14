@@ -53,6 +53,14 @@ If a task hits the stop list — do everything else and mark that part BLOCKED.
 - A Bash command whose text contains the word `gh` is blocked unless it is an allowed `gh` call. Put such text (a commit message, a prompt) in a file: `git commit -F <file>`.
 - Other tasks may be running in sibling worktrees: don't stop processes you didn't start, don't touch other worktrees or branches.
 
+## Machine resources
+
+The machine is shared with the Owner and other tasks.
+
+- Never create artificial CPU or memory load or spawn extra processes to provoke a failure, even if the assignment asks: a load or stress run needs the Owner — put it in QUESTIONS.
+- Don't loop suites or use retry/repeat settings to hunt a flake: at most 5 re-runs of the one failing test file.
+- Test runners use at most half the logical CPU cores: `--maxWorkers=50%` in jest/vitest, the runner's equivalent elsewhere.
+
 ## Dependencies
 
 - The package manifest and lockfile are shared files. Dependencies are installed by the lead or by one engineer explicitly assigned to it. Everyone else puts the need in QUESTIONS.

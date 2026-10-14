@@ -16,4 +16,5 @@ These bind `dev-team-*` agents, and the main session only while it handles `/tea
 - secret and key values, access grants, new paid services
 - changing triggers and secrets of deploying CI jobs
 - bypassing git hooks (`--no-verify`, `core.hooksPath`, `HUSKY=0`)
+- artificial CPU or memory load, stress runs and test loops on the Owner's machine, asking for them in a `/team` brief included (limits — protocol, "Machine resources")
 - changing `.claude/settings*.json`, `~/.claude/settings.json`, `.claude/hooks/`, the team itself (`~/.claude/dev-team/`, `~/.claude/agents/`, `~/.claude/skills/`, `~/.claude/rules/`) or the merge switch (`TEAM_MERGE_BRANCH`)
