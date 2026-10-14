@@ -3,7 +3,7 @@
 // dev-team-head-pm runs it first, with the slot as its cwd:
 //   node slot-init.mjs <repo-dir> <team/branch>
 // <repo-dir>: a repo's top-level inside the workspace (the folder holding .team-worktrees/), absolute or
-// relative to it. Fetches origin, puts the new branch on origin/develop, else on origin's default branch,
+// relative to it. Fetches origin (pruned), puts the new branch on origin/develop, else on origin's default branch,
 // copies the repo's .worktreeinclude matches the worktree lacks, and prints the base. Any failure exits 1.
 
 import { execFileSync } from 'node:child_process';
@@ -57,7 +57,7 @@ if (realpathSync(top) !== repo) fail(`${repo} is not a repo's top-level (that is
 if (!branch.startsWith('team/')) fail(`the branch must start with team/, got "${branch}"`);
 if (ok('check-ref-format', '--branch', branch) === null) fail(`not a valid branch name: "${branch}"`);
 
-must('git fetch origin', '-C', repo, 'fetch', '-q', 'origin');
+must('git fetch --prune origin', '-C', repo, 'fetch', '-q', '--prune', 'origin'); // a deleted origin/develop must not stay the base
 for (const ref of [`refs/heads/${branch}`, `refs/remotes/origin/${branch}`]) {
   if (ok('-C', repo, 'show-ref', '--verify', '--quiet', ref) !== null) fail(`branch ${branch} already exists (${ref})`);
 }

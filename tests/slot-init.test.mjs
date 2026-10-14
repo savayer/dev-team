@@ -192,3 +192,12 @@ test('.worktreeinclude: copies untracked matches, never overwrites, skips tracke
   assert.deepEqual(readdirSync(join(s.root, 'elsewhere')), [], 'nothing written through a tracked symlink');
   assert.equal(git(s.slot, 'diff', '--name-only', 'HEAD'), '');
 });
+
+test('develop deleted on origin after the clone: the stale origin/develop is pruned, the base is the default branch', () => {
+  const s = setup();
+  git(s.seed, 'push', '-q', 'origin', '--delete', 'develop');
+  const r = run(s.slot, 'app', 'team/x');
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, 'main\n');
+  assert.equal(git(s.slot, 'rev-parse', 'HEAD'), git(s.repo, 'rev-parse', 'refs/remotes/origin/main'));
+});
