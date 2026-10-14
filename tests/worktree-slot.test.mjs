@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -80,4 +80,17 @@ test('a workspace inside a git repo is refused', () => {
     assert.match(r.stderr, /only for a multi-repo workspace \(a non-git folder\)/, ws);
     assert.equal(existsSync(join(ws, '.team-worktrees')), false, ws);
   }
+});
+
+test('.team-worktrees that is a symlink or a file is refused, nothing is created outside', () => {
+  const ws = temp();
+  const outside = temp();
+  symlinkSync(outside, join(ws, '.team-worktrees'));
+  const r = run({ cwd: ws });
+  assert.equal(r.status, 1);
+  assert.equal(r.stdout, '');
+  assert.deepEqual(readdirSync(outside), []);
+  const ws2 = temp();
+  writeFileSync(join(ws2, '.team-worktrees'), 'x\n');
+  assert.equal(run({ cwd: ws2 }).status, 1);
 });

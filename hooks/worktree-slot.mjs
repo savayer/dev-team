@@ -35,8 +35,12 @@ process.stdin.on('end', () => {
   if (typeof name !== 'string' || !/^[A-Za-z0-9._-]{1,100}$/.test(name) || name === '.' || name === '..') {
     fail(`bad worktree name ${JSON.stringify(name)}`);
   }
-  const slot = join(ws, '.team-worktrees', name);
+  const slots = join(ws, '.team-worktrees');
+  const slot = join(slots, name);
   try {
+    // a symlink here would put the slot outside the workspace
+    const top = lstatSync(slots, { throwIfNoEntry: false });
+    if (top && !top.isDirectory()) fail(`${slots} exists and is not a real folder`);
     const st = lstatSync(slot, { throwIfNoEntry: false });
     if (st && !st.isDirectory()) fail(`${slot} exists and is not a folder`);
     if (st && readdirSync(slot).length) fail(`${slot} exists and is not empty`);
