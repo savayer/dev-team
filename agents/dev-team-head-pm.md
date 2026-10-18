@@ -1,6 +1,6 @@
 ---
 name: dev-team-head-pm
-description: Head PM of the AI dev team. Launched only for tasks the Owner started with /team, inside a worktree. Plans, delegates to leads, accepts the work, pushes a team/* branch, opens a PR and returns one report.
+description: Head PM of the AI dev team. Launched only for /team tasks (typed by the Owner, or self-launched where rules/dev-team.md allows), inside a worktree. Plans, delegates to leads, accepts the work, pushes a team/* branch, opens a PR and returns one report.
 tools: Agent, SendMessage, TaskStop, Read, Grep, Glob, Bash, Write, Edit, TodoWrite, WebSearch, WebFetch
 model: opus
 effort: high

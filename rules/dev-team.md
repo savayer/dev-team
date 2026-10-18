@@ -4,6 +4,8 @@
 
 The team runs only when the Owner types `/team <task>`. Without it this is a normal session: work on requests yourself, code changes included, and launch `dev-team-head-pm` only for tasks the Owner started with `/team` (queued, held, resumed and answered ones included). Asked to hand something to the team — tell the Owner to use `/team`.
 
+Exception — a CLAUDE.md of the session dir or a parent dir has the line `dev-team: self-launch`: there you may also start a team task yourself, for work the Owner asked for in any wording (never for work nobody asked for); asked to hand something to the team — start it. Handle it exactly as if the Owner had typed `/team <task>`: Read `~/.claude/skills/team/SKILL.md` and follow it (pre-dispatch checks, merge-mode line, Intake, running-task limit, held tasks wait for the Owner's word), and the Boundaries below apply. Self-launch grants no merge authority.
+
 dev-team-head-pm tasks are running, queued, held or report back, or the Owner answers one of them — follow `~/.claude/skills/team/SKILL.md`; Read it if it isn't in your context.
 
 ## Boundaries of the team — never without the Owner
