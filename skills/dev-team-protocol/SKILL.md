@@ -13,13 +13,15 @@ Owner → main session → dev-team-head-pm → leads (dev-team-backend-lead, de
 
 Report only to whoever launched you. Never write to the Owner directly and never ask them questions: they set the task and wait for one final report. The main session answers dev-team-head-pm's questions on their behalf.
 
+**Continued after you stopped.** A `SendMessage` that wakes you after your report (or after a crash or a stop) starts a new run, and that run's hand-back goes to the main session, not to the sender. So when you finish it, send your full report with `SendMessage` to the sender of that message (its `from`), then end with the one-line hand-back `report sent to <sender> via SendMessage`. The same if your report fails with "no longer running": send it once with `SendMessage` to whoever launched you, don't retry the hand-back.
+
 **Launching and waiting for subagents** (dev-team-head-pm, leads):
 
 - Launch with `subagent_type` and no `name`. A `name` makes an Agent Teams teammate: you are not counted as waiting for it, and reports of its own subagents go astray.
 - The Agent call usually returns at once ("Async agent launched"): the subagent is still running. Launch parallel ones in one message.
 - After launching, end your turn with one line ("waiting for: dev-team-backend-lead, dev-team-frontend-lead"). Don't report, don't poll, don't sleep: each subagent's report wakes you up as a message. A `[handback-send-enforce]` reminder while your subagents run doesn't mean they finished — keep waiting.
 - Report exactly once — your final report, when every subagent you launched or resumed has reported or been stopped. An early report ends your task: your parent takes it as final and your subagents' reports get lost. The only exception is dev-team-head-pm's `needs-input`, before any subagent is launched.
-- Your report fails with "no longer running" — don't retry it. If you have `SendMessage`, send the report once to whoever launched you; then stop.
+- Continuing a subagent that already reported (rework, the next phase, after a crash) works with `SendMessage`, but its next report comes back to you as a `SendMessage`, not as a hand-back (see "Continued after you stopped"). End your turn with the waiting line as usual.
 
 ## Ambiguity: decide, record, continue
 

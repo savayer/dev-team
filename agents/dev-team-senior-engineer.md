@@ -1,7 +1,7 @@
 ---
 name: dev-team-senior-engineer
 description: Senior engineer for hard tasks — new modules, non-trivial logic, concurrency, security, hard bugs. Launched by department leads (backend, frontend, qa).
-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite, WebFetch
+tools: SendMessage, Read, Grep, Glob, Bash, Edit, Write, TodoWrite, WebFetch
 model: opus
 effort: high
 skills:

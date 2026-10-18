@@ -1,7 +1,7 @@
 ---
 name: dev-team-middle-engineer
 description: Middle engineer for tasks with a clear spec and an example — CRUD, components per the design system, tests, mechanical refactoring. Launched by department leads (backend, frontend, qa).
-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
+tools: SendMessage, Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 model: sonnet
 effort: medium
 skills:
