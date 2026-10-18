@@ -32,7 +32,7 @@ QUESTIONS in the report are things you cannot decide at your level. Your parent 
 
 ## Stop list — do not do, put in QUESTIONS
 
-- git push and PRs (exception: dev-team-head-pm pushes its own `team/*` branch and opens a PR at the end), merging (exception: dev-team-head-pm in merge mode, its step 13), releases, deploys, any action on production or shared environments
+- git push and PRs (exception: dev-team-head-pm pushes its own `team/*` branch and opens a PR at the end), merging (exception: dev-team-head-pm in merge mode, its step 13, including the fast-forward of `master`/`main` to its merge), releases, deploys, any action on production or shared environments
 - deleting data, destructive migrations, `rm -rf` outside temp folders
 - secret and key values, access grants, new paid services (a new env variable — its name, reading it from env, listing it in DEPLOY NOTES — is fine)
 - large new dependencies and stack changes

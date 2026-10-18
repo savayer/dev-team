@@ -29,7 +29,7 @@ The team is installed once per machine, in `~/.claude`, as links to this repo. P
 | `agents/dev-team-explorer.md` | Read-only code search, used instead of the built-in `Explore` so the guard covers it |
 | `agents/dev-team-ui-tester.md` | Browser smoke test via Playwright MCP |
 | `skills/dev-team-*/` | Shared protocol, backend ↔ frontend contract, auth and webhook checks |
-| `hooks/guard.mjs` | Guard for team agents only. Only the PM may push its `team/*` branch, open a PR and, in merge mode, merge it. Blocks every other push, merge and `gh` call, publishing, cluster and infrastructure changes, hook bypass, `git stash`, touching `.env*`, `*.pem`, `secrets/` |
+| `hooks/guard.mjs` | Guard for team agents only. Only the PM may push its `team/*` branch, open a PR and, in merge mode, merge it (and fast-forward `master`/`main` to that merge). Blocks every other push, merge and `gh` call, publishing, cluster and infrastructure changes, hook bypass, `git stash`, touching `.env*`, `*.pem`, `secrets/` |
 | `hooks/sync-memory.mjs` | Copies lead memory from a task's worktree back to the main checkout |
 | `hooks/worktree-slot.mjs` | `WorktreeCreate` hook of a [multi-repo workspace](#multi-repo-workspace): an empty slot per isolated agent |
 | `hooks/slot-init.mjs` | Run by the PM: turns its slot into a worktree of the task's repo on the base |
@@ -79,9 +79,9 @@ Off by default: the team opens PRs, you merge them. To turn it on, add to the pr
 { "env": { "TEAM_MERGE_BRANCH": "develop" } }
 ```
 
-and start a new session — `/team` prints "merge mode: on" in its first line. The value must be the team's base (`develop`, or the default branch when there's no `develop`), never a production branch. Remove the line and start a new session to turn it off.
+and start a new session — `/team` prints "merge mode: on" in its first line. The value is the team's base (`develop`, or the default branch when there's no `develop`): the team merges into it only. Or `master`/`main` in a repo with `develop`: the team merges into `develop`, then fast-forwards `master`/`main` to that merge, so both get all the work ("merge mode: on → develop, then master"). Never a branch that deploys on push. Any other value merges nothing. Remove the line and start a new session to turn it off.
 
-The PM then merges its own PR with a merge commit once QA and review passed with no critical/major findings, nothing is blocked, and the branch has caught up with the latest base — conflicts resolved, checks green again. Open questions don't stop the merge. A PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` is never merged by the team. Roll back with `git revert -m 1 <merge sha>` (the SHA is in the report), newest merge first.
+The PM then merges its own PR with a merge commit once QA and review passed with no critical/major findings, nothing is blocked, and the branch has caught up with the latest base (and with `master`/`main` when it promotes) — conflicts resolved, checks green again. Open questions don't stop the merge. In a public repo the PM fast-forwards the base to the PR head instead of a GitHub merge commit, which would carry your account's name and email. The promotion is a fast-forward only: when `master`/`main` moved, or `develop` would bring protected files to it, it stays with you and the report says "not promoted". A PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` is never merged by the team. Roll back with `git revert -m 1 <merge sha>` (the SHA is in the report), newest merge first; after a fast-forward, revert the task's commits listed in the report.
 
 The guard catches agent mistakes, not a hostile agent: agents run with your GitHub credentials. For a hard guarantee use a bot account and branch protection.
 

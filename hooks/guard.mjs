@@ -5,7 +5,8 @@
 // Bans: publishing, image pushes, cluster and infrastructure changes, hook bypass, git stash, reading
 // secrets (.env*, *.pem, secrets/). Any git push or gh call must match the allowlist exactly.
 // Push and PR creation: dev-team-head-pm only; push only the current team/* branch. Merge: dev-team-head-pm only, in
-// merge mode (TEAM_MERGE_BRANCH), its own team/* PR at the tested commit (see MERGE). Other merges,
+// merge mode (TEAM_MERGE_BRANCH), its own team/* PR at the tested commit (see MERGE; a fast-forward in public repos)
+// and, with master|main over a develop base, a fast-forward of that merge to master|main (see FF_PUSH). Other merges,
 // force pushes, pushes to other branches, releases, workflows, gh api — blocked.
 // Guards against mistakes of cooperative agents, not a hostile one: it sees only the command text.
 // Exit 2 blocks the call; the hook entry turns any crash into exit 2 too. An allowed head-pm push, PR or
@@ -20,6 +21,10 @@ const full = (src) => new RegExp(`^(?:${src})$`);
 const PUSH = full(String.raw`git push (?:-u |--set-upstream )?origin (team/[A-Za-z0-9._/-]+)`);
 const PR_CREATE = full(`gh pr create${ARGS}`);
 const MERGE = full(String.raw`gh pr merge (team/[A-Za-z0-9._/-]+) --merge --match-head-commit ([0-9a-f]{40})`);
+// fast-forward of an exact commit: the PR head to its base (public repos), or the merge on develop to master/main
+const FF_PUSH = full(String.raw`git push origin ([0-9a-f]{40}):refs/heads/([A-Za-z0-9._/-]+)`);
+// TEAM_MERGE_BRANCH=master|main over a develop base: merge into develop, then fast-forward the branch to that merge
+const PROMOTE_TO = new Set(['master', 'main']);
 // never auto-merged: they change the Owner's environment on the next pull
 const PROTECTED = /^(\.claude\/|\.github\/|\.husky\/|\.mcp\.json$|\.worktreeinclude$)/;
 const SUB = { encoding: 'utf8', timeout: 20_000 };
@@ -59,50 +64,129 @@ function allow() {
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], SUB).trim();
 const gh = (cwd, ...args) => execFileSync('gh', args, { ...SUB, cwd });
 
-// merge mode: dev-team-head-pm merges its own open PR, at the commit it tested, into TEAM_MERGE_BRANCH
+// merge mode: dev-team-head-pm merges its own open PR, at the commit it tested, into its base when TEAM_MERGE_BRANCH
+// is that base; TEAM_MERGE_BRANCH=master|main over a develop base also lets it fast-forward master|main to that merge
 // (merge-branch.mjs: the session env, or the repo's own settings in a multi-repo workspace)
-function checkMerge(cwd, branch, sha) {
-  const base = mergeBranch({ cwd });
-  if (!base) {
+function mergeSwitch(cwd) {
+  const value = mergeBranch({ cwd });
+  if (!value) {
     deny(
       'merge mode is off (TEAM_MERGE_BRANCH is not set: in .claude/settings.local.json of the project for a ' +
         "single repo, of the task's repo in a multi-repo workspace)",
     );
   }
-  if (base.startsWith('-')) deny('TEAM_MERGE_BRANCH must not start with -');
+  if (value.startsWith('-')) deny('TEAM_MERGE_BRANCH must not start with -');
   try {
-    execFileSync('git', ['check-ref-format', '--branch', base], SUB);
+    execFileSync('git', ['check-ref-format', '--branch', value], SUB);
   } catch {
-    deny(`TEAM_MERGE_BRANCH is not a valid branch name: "${base}"`);
+    deny(`TEAM_MERGE_BRANCH is not a valid branch name: "${value}"`);
   }
   // the merge command runs with the same environment: it would target another repository
   for (const v of ['GH_REPO', 'GH_HOST']) if (process.env[v]) deny(`${v} is set: the merge would not target this checkout`);
   if (!cwd) deny('no cwd in hook input');
+  return value;
+}
+
+// the PR's base when merge mode covers it; the branch to promote to afterwards, or '' when there is none
+function mergeTargets(value, prBase) {
+  if (prBase === value) return { base: prBase, promote: '' };
+  if (PROMOTE_TO.has(value) && prBase === 'develop') return { base: prBase, promote: value };
+  deny(`PR base is ${prBase}, merge mode allows only ${PROMOTE_TO.has(value) ? `develop or ${value}` : value}`);
+}
+
+const isAncestor = (cwd, a, b) => {
   try {
-    if (git(cwd, 'branch', '--show-current') !== branch) deny(`merge only your current branch, not ${branch}`);
-    if (git(cwd, 'rev-parse', 'HEAD') !== sha) deny('--match-head-commit must be your HEAD');
-    try {
-      git(cwd, 'diff', '--quiet', 'HEAD');
-    } catch {
-      deny('commit or discard tracked changes first');
+    git(cwd, 'merge-base', '--is-ancestor', a, b);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// the PR's diff, from git: both sides of a rename, unquoted names
+function protectedIn(cwd, range) {
+  return git(cwd, 'diff', '--name-only', '--no-renames', '-z', range).split('\0').filter(Boolean).filter((f) => PROTECTED.test(f));
+}
+
+// one snapshot of the PR per check: a second read could see it retargeted
+const prView = (cwd, branch) =>
+  JSON.parse(gh(cwd, 'pr', 'view', branch, '--json', 'state,baseRefName,headRefName,headRefOid,isCrossRepository,mergeCommit'));
+
+// a GitHub merge commit carries the account's name and email: public history gets a fast-forward instead
+function isPrivate(cwd) {
+  const { visibility } = JSON.parse(gh(cwd, 'repo', 'view', '--json', 'visibility'));
+  return visibility === 'PRIVATE' || visibility === 'INTERNAL';
+}
+
+// own open PR at sha = HEAD, caught up with its base (and with the branch it will be promoted to); checks use the
+// sha itself, so a HEAD moved meanwhile changes nothing
+function checkOpenPr(cwd, branch, sha, value, pr) {
+  if (git(cwd, 'branch', '--show-current') !== branch) deny(`merge only your current branch, not ${branch}`);
+  if (git(cwd, 'rev-parse', 'HEAD') !== sha) deny(`${sha} must be your HEAD`);
+  try {
+    git(cwd, 'diff', '--quiet', 'HEAD');
+  } catch {
+    deny('commit or discard tracked changes first');
+  }
+  if (pr.state !== 'OPEN') deny(`PR is ${pr.state}, not OPEN`);
+  if (pr.headRefName !== branch || pr.headRefOid !== sha) deny('PR head is not your branch at your HEAD — push first');
+  if (pr.isCrossRepository) deny('PR comes from a fork');
+  const { base, promote } = mergeTargets(value, pr.baseRefName);
+  for (const b of [base, promote].filter(Boolean)) {
+    git(cwd, 'fetch', '-q', 'origin', b);
+    if (!isAncestor(cwd, `origin/${b}`, sha)) {
+      deny(`${b === base ? 'base' : b} moved: merge origin/${b} into ${branch}, re-run the checks, push, then merge again`);
     }
-    const pr = JSON.parse(gh(cwd, 'pr', 'view', branch, '--json', 'state,baseRefName,headRefName,headRefOid,isCrossRepository'));
-    if (pr.state !== 'OPEN') deny(`PR is ${pr.state}, not OPEN`);
-    if (pr.headRefName !== branch || pr.headRefOid !== sha) deny('PR head is not your branch at your HEAD — push first');
-    if (pr.isCrossRepository) deny('PR comes from a fork');
-    if (pr.baseRefName !== base) deny(`PR base is ${pr.baseRefName}, merge mode allows only ${base}`);
-    git(cwd, 'fetch', '-q', 'origin', base);
-    try {
-      git(cwd, 'merge-base', '--is-ancestor', `origin/${base}`, 'HEAD');
-    } catch {
-      deny(`base moved: merge origin/${base} into ${branch}, re-run the checks, push, then merge again`);
-    }
-    // the PR's diff, from git: both sides of a rename, unquoted names
-    const files = git(cwd, 'diff', '--name-only', '--no-renames', '-z', `origin/${base}...HEAD`).split('\0').filter(Boolean);
-    const touched = files.filter((f) => PROTECTED.test(f));
-    if (touched.length) deny(`PR touches ${touched.join(', ')} — the Owner merges such PRs by hand`);
+  }
+  const touched = protectedIn(cwd, `origin/${base}...${sha}`);
+  if (touched.length) deny(`PR touches ${touched.join(', ')} — the Owner merges such PRs by hand`);
+  return base;
+}
+
+function checkMerge(cwd, branch, sha) {
+  const value = mergeSwitch(cwd);
+  try {
+    checkOpenPr(cwd, branch, sha, value, prView(cwd, branch));
+    if (!isPrivate(cwd)) deny(`the repo is not private: fast-forward instead — git push origin ${sha}:refs/heads/<base>`);
   } catch (e) {
     deny(`merge check failed (${e.message.split('\n')[0]})`);
+  }
+}
+
+// `git push origin <sha>:refs/heads/<target>`, never forced: the open PR's head to its base, or the PR's merge
+// commit on develop to master|main (promotion)
+function checkFastForward(cwd, sha, target) {
+  const value = mergeSwitch(cwd);
+  try {
+    // the PR and visibility come from the repo gh sees; the push must land in that same origin
+    for (const key of ['remote.origin.pushurl', 'remote.origin.push']) {
+      let set = '';
+      try {
+        set = git(cwd, 'config', '--get-all', key);
+      } catch {}
+      if (set) deny(`${key} is set: the push would not go where the checks looked`);
+    }
+    const branch = git(cwd, 'branch', '--show-current');
+    if (!branch.startsWith('team/')) deny(`push from your team/* branch, not ${branch || 'a detached HEAD'}`);
+    const pr = prView(cwd, branch);
+    if (pr.headRefName !== branch) deny(`PR head is ${pr.headRefName}, not your branch`);
+    if (pr.isCrossRepository) deny('PR comes from a fork');
+    const { base, promote } = mergeTargets(value, pr.baseRefName);
+    if (target === base) {
+      if (isPrivate(cwd)) deny(`the repo is private: merge with gh pr merge ${branch} --merge --match-head-commit ${sha}`);
+      checkOpenPr(cwd, branch, sha, value, pr);
+      return;
+    }
+    if (!promote || target !== promote) deny(`push target must be ${promote ? `${base} or ${promote}` : base}, not ${target}`);
+    if (pr.state !== 'MERGED') deny(`PR is ${pr.state}: promote only after it is merged into ${base}`);
+    if (pr.mergeCommit?.oid !== sha) deny(`${sha} is not the PR's merge commit`);
+    for (const b of [base, promote]) git(cwd, 'fetch', '-q', 'origin', b);
+    if (!isAncestor(cwd, sha, `origin/${base}`)) deny(`${sha} is not on origin/${base}`);
+    if (!isAncestor(cwd, `origin/${promote}`, sha)) deny(`${promote} moved: not a fast-forward — the Owner promotes by hand`);
+    const touched = protectedIn(cwd, `origin/${promote}...${sha}`);
+    if (touched.length) deny(`the promotion touches ${touched.join(', ')} — the Owner promotes such changes by hand`);
+  } catch (e) {
+    deny(`fast-forward check failed (${e.message.split('\n')[0]})`);
   }
 }
 
@@ -139,6 +223,12 @@ process.stdin.on('end', () => {
     checkMerge(cwd, merge[1], merge[2]);
     allow();
   }
+  const ff = cmd.match(FF_PUSH);
+  if (ff) {
+    if (agent !== 'dev-team-head-pm') deny('only dev-team-head-pm may merge, and only in merge mode');
+    checkFastForward(cwd, ff[1], ff[2]);
+    allow();
+  }
   const push = cmd.match(PUSH);
   if (push || PR_CREATE.test(cmd)) {
     if (agent !== 'dev-team-head-pm') deny('only dev-team-head-pm may push or open PRs');
@@ -154,7 +244,8 @@ process.stdin.on('end', () => {
   }
   deny(
     'allowed forms are `git push -u origin team/<name>`, `gh pr create ...` and, in merge mode, ' +
-      '`gh pr merge team/<name> --merge --match-head-commit <sha>` (dev-team-head-pm only, each as a standalone ' +
-      'command), plus read-only `gh pr view|list|diff|checks|status`. Text that mentions gh goes in a file.',
+      '`gh pr merge team/<name> --merge --match-head-commit <sha>` and `git push origin <sha>:refs/heads/<branch>` ' +
+      '(dev-team-head-pm only, each as a standalone command), plus read-only `gh pr view|list|diff|checks|status`. ' +
+      'Text that mentions gh goes in a file.',
   );
 });

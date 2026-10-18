@@ -56,7 +56,16 @@ export const BIN = mkdtempSync(join(tmpdir(), 'fakegh-'));
 writeFileSync(join(BIN, 'gh'), `#!/usr/bin/env node
 const a = process.argv.slice(2).join(' ');
 if (process.env.FAKE_GH_FAIL) { process.stderr.write('boom'); process.exit(1); }
-if (a.startsWith('pr view')) process.stdout.write(process.env.FAKE_PR_JSON ?? '{}');
+// FAKE_PR_SEQ: a JSON array of answers, one per call (counted in FAKE_PR_SEQ_FILE) — a PR changing between reads
+if (a.startsWith('pr view') && process.env.FAKE_PR_SEQ) {
+  const fs = require('node:fs');
+  const f = process.env.FAKE_PR_SEQ_FILE;
+  const i = fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8')) : 0;
+  fs.writeFileSync(f, String(i + 1));
+  const seq = JSON.parse(process.env.FAKE_PR_SEQ);
+  process.stdout.write(JSON.stringify(seq[Math.min(i, seq.length - 1)]));
+} else if (a.startsWith('pr view')) process.stdout.write(process.env.FAKE_PR_JSON ?? '{}');
+else if (a.startsWith('repo view')) process.stdout.write(process.env.FAKE_REPO_JSON ?? '{"visibility":"PRIVATE"}');
 else process.exit(1);
 `);
 chmodSync(join(BIN, 'gh'), 0o755);
@@ -339,8 +348,8 @@ test('merge in a multi-repo slot: the repo\'s settings.local.json decides, the s
   settings(r.main, 'develop');
   const res = runHook(mergeCmd(r), 'dev-team-head-pm', { cwd: r.work, env: { FAKE_PR_JSON: prJson(r) } });
   assert.equal(res.status, 0, res.stderr);
-  settings(r.main, 'main');
-  denied(r, mergeCmd(r), 'dev-team-head-pm', {}, /merge mode allows only main/, 'the repo\'s base, not the env\'s');
+  settings(r.main, 'release');
+  denied(r, mergeCmd(r), 'dev-team-head-pm', {}, /merge mode allows only release/, 'the repo\'s base, not the env\'s');
 });
 
 test('merge branch: CLAUDE_PROJECT_DIR of a non-git workspace means multi-repo outside a slot too', () => {
@@ -367,4 +376,142 @@ test('merge in a single-repo session: CLAUDE_PROJECT_DIR is the repo, the env de
   const r = makeRepo();
   const res = runHook(mergeCmd(r), 'dev-team-head-pm', { cwd: r.work, env: env(r, { CLAUDE_PROJECT_DIR: r.work }) });
   assert.equal(res.status, 0, res.stderr);
+});
+
+// TEAM_MERGE_BRANCH=master over a develop base: origin also has master (at develop's base commit)
+function promoteRepo(opts) {
+  const r = makeRepo(opts);
+  git(r.work, 'push', '-q', 'origin', 'origin/develop:refs/heads/master');
+  git(r.work, 'fetch', '-q', 'origin');
+  return r;
+}
+// the PR merged into develop on origin; team/a stays checked out
+function mergeOnDevelop(r) {
+  const other = join(r.root, `merger-${Math.random().toString(36).slice(2)}`);
+  execFileSync('git', ['clone', '-q', '-b', 'develop', r.origin, other], { env: GIT_ENV, stdio: 'ignore' });
+  git(other, 'merge', '-q', '--no-ff', '-m', 'merge team/a', 'origin/team/a');
+  git(other, 'push', '-q', 'origin', 'develop');
+  return git(other, 'rev-parse', 'HEAD');
+}
+const toMaster = { TEAM_MERGE_BRANCH: 'master' };
+const ffCmd = (sha, target) => `git push origin ${sha}:refs/heads/${target}`;
+
+test('promote: master over a develop base merges the develop PR', () => {
+  const r = promoteRepo();
+  const res = runHook(mergeCmd(r), 'dev-team-head-pm', { cwd: r.work, env: env(r, toMaster) });
+  assert.equal(res.status, 0, res.stderr);
+});
+
+test('promote: master that moved past the branch, or an unrelated switch, is denied', () => {
+  const r = promoteRepo();
+  const other = join(r.root, 'bot');
+  execFileSync('git', ['clone', '-q', '-b', 'master', r.origin, other], { env: GIT_ENV, stdio: 'ignore' });
+  git(other, 'commit', '-q', '--allow-empty', '-m', 'bot bump on master');
+  git(other, 'push', '-q', 'origin', 'master');
+  denied(r, mergeCmd(r), 'dev-team-head-pm', toMaster, /master moved: merge origin\/master/, 'master moved');
+  const q = promoteRepo();
+  denied(q, mergeCmd(q), 'dev-team-head-pm', { TEAM_MERGE_BRANCH: 'release' }, /merge mode allows only release/, 'unrelated switch');
+  denied(q, mergeCmd(q), 'dev-team-head-pm', { TEAM_MERGE_BRANCH: 'master', FAKE_PR_JSON: prJson(q, { baseRefName: 'staging' }) }, /allows only develop or master/, 'other base');
+});
+
+test('public repo: gh pr merge is denied, the fast-forward to the base passes', () => {
+  const r = promoteRepo();
+  const pub = { FAKE_REPO_JSON: '{"visibility":"PUBLIC"}' };
+  denied(r, mergeCmd(r), 'dev-team-head-pm', pub, /repo is not private: fast-forward instead/, 'public merge');
+  for (const sw of [{}, toMaster]) {
+    const res = runHook(ffCmd(r.sha, 'develop'), 'dev-team-head-pm', { cwd: r.work, env: env(r, { ...pub, ...sw }) });
+    assert.equal(res.status, 0, res.stderr);
+  }
+  denied(r, ffCmd('0'.repeat(40), 'develop'), 'dev-team-head-pm', pub, /must be your HEAD/, 'ff of another commit');
+  denied(r, ffCmd(r.sha, 'develop'), 'dev-team-head-pm', { ...pub, FAKE_PR_JSON: prJson(r, { state: 'MERGED' }) }, /not OPEN/, 'ff of a merged PR');
+  for (const visibility of ['PRIVATE', 'INTERNAL']) {
+    denied(r, ffCmd(r.sha, 'develop'), 'dev-team-head-pm', { FAKE_REPO_JSON: JSON.stringify({ visibility }) }, /repo is private: merge with gh pr merge/, visibility);
+  }
+});
+
+test('fast-forward: the PR is read once, so a retarget between reads does not hide protected files', () => {
+  const r = makeRepo();
+  git(r.work, 'push', '-q', 'origin', 'origin/develop:refs/heads/main');
+  const other = join(r.root, 'on-main');
+  execFileSync('git', ['clone', '-q', '-b', 'main', r.origin, other], { env: GIT_ENV, stdio: 'ignore' });
+  writeFiles(other, { '.github/workflows/ci.yml': 'x\n' });
+  git(other, 'add', '-A');
+  git(other, 'commit', '-q', '-m', 'ci on main only');
+  git(other, 'push', '-q', 'origin', 'main');
+  git(r.work, 'fetch', '-q', 'origin');
+  git(r.work, 'merge', '-q', '--no-edit', 'origin/main');
+  git(r.work, 'push', '-q', 'origin', 'team/a');
+  const sha = git(r.work, 'rev-parse', 'HEAD');
+  const seq = JSON.stringify([JSON.parse(prJson(r, { headRefOid: sha })), JSON.parse(prJson(r, { headRefOid: sha, baseRefName: 'main' }))]);
+  const over = { TEAM_MERGE_BRANCH: 'main', FAKE_REPO_JSON: '{"visibility":"PUBLIC"}', FAKE_PR_SEQ: seq, FAKE_PR_SEQ_FILE: join(r.root, 'seq') };
+  denied(r, ffCmd(sha, 'develop'), 'dev-team-head-pm', over, /PR touches \.github/, 'retargeted between reads');
+});
+
+test('promote: the PR\'s merge commit on develop fast-forwards master', () => {
+  const r = promoteRepo();
+  const m = mergeOnDevelop(r);
+  const merged = { ...toMaster, FAKE_PR_JSON: prJson(r, { state: 'MERGED', mergeCommit: { oid: m } }) };
+  const res = runHook(ffCmd(m, 'master'), 'dev-team-head-pm', { cwd: r.work, env: env(r, merged) });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(JSON.parse(res.stdout).hookSpecificOutput.permissionDecision, 'allow');
+  const cases = [
+    ['not head-pm', ffCmd(m, 'master'), 'dev-team-backend-lead', merged, /only dev-team-head-pm may merge/],
+    ['switch off', ffCmd(m, 'master'), 'dev-team-head-pm', { ...merged, TEAM_MERGE_BRANCH: undefined }, /merge mode is off/],
+    ['no promotion with develop', ffCmd(m, 'master'), 'dev-team-head-pm', { ...merged, TEAM_MERGE_BRANCH: 'develop' }, /push target must be develop, not master/],
+    ['other target', ffCmd(m, 'release'), 'dev-team-head-pm', merged, /push target must be develop or master/],
+    ['PR still open', ffCmd(m, 'master'), 'dev-team-head-pm', { ...toMaster, FAKE_PR_JSON: prJson(r) }, /promote only after/],
+    ['not the merge commit', ffCmd(r.sha, 'master'), 'dev-team-head-pm', merged, /not the PR's merge commit/],
+  ];
+  for (const [name, cmd, agent, over, reason] of cases) denied(r, cmd, agent, over, reason, name);
+});
+
+test('promote: a commit not on develop, or master moved, is denied', () => {
+  const r = promoteRepo();
+  const offDevelop = { ...toMaster, FAKE_PR_JSON: prJson(r, { state: 'MERGED', mergeCommit: { oid: r.sha } }) };
+  denied(r, ffCmd(r.sha, 'master'), 'dev-team-head-pm', offDevelop, /is not on origin\/develop/, 'not on develop');
+  const m = mergeOnDevelop(r);
+  const bot = join(r.root, 'bot');
+  execFileSync('git', ['clone', '-q', '-b', 'master', r.origin, bot], { env: GIT_ENV, stdio: 'ignore' });
+  git(bot, 'commit', '-q', '--allow-empty', '-m', 'bot bump on master');
+  git(bot, 'push', '-q', 'origin', 'master');
+  const merged = { ...toMaster, FAKE_PR_JSON: prJson(r, { state: 'MERGED', mergeCommit: { oid: m } }) };
+  denied(r, ffCmd(m, 'master'), 'dev-team-head-pm', merged, /master moved: not a fast-forward/, 'master moved');
+});
+
+test('promote: protected paths that develop would bring to master are left to the Owner', () => {
+  const r = promoteRepo();
+  const other = join(r.root, 'human');
+  execFileSync('git', ['clone', '-q', '-b', 'develop', r.origin, other], { env: GIT_ENV, stdio: 'ignore' });
+  writeFiles(other, { '.github/workflows/ci.yml': 'x\n' });
+  git(other, 'add', '-A');
+  git(other, 'commit', '-q', '-m', 'ci on develop');
+  git(other, 'push', '-q', 'origin', 'develop');
+  git(r.work, 'fetch', '-q', 'origin');
+  git(r.work, 'merge', '-q', '--no-edit', 'origin/develop');
+  git(r.work, 'push', '-q', 'origin', 'team/a');
+  const m = mergeOnDevelop(r);
+  const merged = { ...toMaster, FAKE_PR_JSON: prJson(r, { state: 'MERGED', mergeCommit: { oid: m } }) };
+  denied(r, ffCmd(m, 'master'), 'dev-team-head-pm', merged, /promotion touches \.github/, 'protected on develop');
+});
+
+test('fast-forward: other push forms stay denied', () => {
+  const s = repo.sha;
+  const cases = [
+    `git push origin +${s}:refs/heads/master`,
+    `git push -f origin ${s}:refs/heads/master`,
+    `git push --force-with-lease origin ${s}:refs/heads/master`,
+    `git push origin HEAD:refs/heads/master`,
+    `git push origin ${s}:master`,
+    `git push origin ${s}:refs/heads/master; true`,
+    `git push origin ${s}:refs/tags/prod-1`,
+  ];
+  for (const cmd of cases) denied(repo, cmd, 'dev-team-head-pm', toMaster, /allowed forms are/, cmd);
+});
+
+test('fast-forward: origin with its own push URL or refspec is denied', () => {
+  for (const [key, val] of [['remote.origin.pushurl', '/elsewhere.git'], ['remote.origin.push', 'refs/heads/*:refs/heads/x/*']]) {
+    const r = promoteRepo();
+    git(r.work, 'config', key, val);
+    denied(r, ffCmd(r.sha, 'develop'), 'dev-team-head-pm', { FAKE_REPO_JSON: '{"visibility":"PUBLIC"}' }, new RegExp(`${key.replace(/\./g, '\\.')} is set`), key);
+  }
 });
