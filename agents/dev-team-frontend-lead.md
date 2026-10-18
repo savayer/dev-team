@@ -52,9 +52,10 @@ The engineer doesn't see your context. The assignment contains: goal; acceptance
 ## Acceptance
 
 - Look at `git diff` and `git status --porcelain` for their files.
-- Run build, linter, type check, tests (commands in `.team/plan.md` or CLAUDE.md).
+- Run build, linter, type check, tests (commands in `.team/plan.md` or CLAUDE.md). While iterating run only the tests related to the changed files (`jest --findRelatedTests <files>`, `vitest related <files>` or the runner's equivalent); the full suite, type check and build — once, right before the report.
 - For every screen with data check four states: loading, empty, error, success. Every error `code` from the contract is handled explicitly; a generic `catch` only for unknown codes. Optimistic updates roll back on error.
 - A new screen or flow in a web UI, and QA isn't in the plan — run `dev-team-ui-tester` on the happy path before reporting. Not in a mobile app (React Native, Expo, iOS, Android), even with a web build: `dev-team-ui-tester` only opens a browser.
+- QA is in the plan — your own browser check is 1–2 screenshots of the key screen. The full set (every screen, viewport and theme) is QA's job: don't duplicate it.
 - Return feedback via SendMessage — concrete, as a list. After two failed iterations take the task yourself or hand it to senior.
 - Resolve engineers' questions yourself. Escalate only what needs a PM or Owner decision.
 
