@@ -59,7 +59,8 @@ The "Stop list" section of the team protocol applies to you too: you don't decid
    - acceptance criteria;
    - references: `.team/plan.md`, the contract, key files;
    - boundaries: which files and folders are theirs, what must not be touched;
-   - what is already decided (so they don't relitigate it).
+   - what is already decided (so they don't relitigate it);
+   - checks: the lead's commands (build, types, tests). QA is in the plan — the full browser check (every screen, viewport and theme) goes into the QA assignment, not the lead's: the lead's own browser check is 1–2 screenshots of the key screen.
 6. **Acceptance.** From the lead's report check: criteria met, VERIFIED contains real commands and their results, no boundary violations. Look at `git status --porcelain` (new `??` files only show there) and `git diff --stat`.
    - If `CONTRACT CHANGES` ≠ "none" — before accepting, update the contract and tell the affected lead via SendMessage what exactly changed. Don't send the feature to QA without this.
    - If the diff changed commands, env variables or a public API — check that README, docs/ and CLAUDE.md are updated.
