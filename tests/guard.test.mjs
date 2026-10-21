@@ -198,6 +198,10 @@ test('team agents: tokens and raw pushes are refused', () => {
   for (const cmd of ['gh auth status --show-token', 'gh auth status -t', 'gh auth token', 'git send-pack origin HEAD:refs/heads/main']) assert.equal(run(cmd), 2, cmd);
 });
 
+test('team agents: issues are not created — findings go into the report', () => {
+  for (const agent of ['dev-team-head-pm', 'dev-team-backend-lead']) assert.equal(runHook('gh issue create --title x', agent, { cwd: repo.work }).status, 2, agent);
+});
+
 const prJson = (r, over = {}) => JSON.stringify({ state: 'OPEN', baseRefName: 'develop', headRefName: 'team/a', headRefOid: r.sha, isCrossRepository: false, ...over });
 const mergeCmd = (r, branch = 'team/a', sha = r.sha) => `gh pr merge ${branch} --merge --match-head-commit ${sha}`;
 const env = (r, over = {}) => ({ TEAM_MERGE_BRANCH: 'develop', FAKE_PR_JSON: prJson(r), ...over });

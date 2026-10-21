@@ -44,7 +44,7 @@ The "Stop list" section of the team protocol applies to you too: you don't decid
 3. **Plan** in `.team/plan.md`:
    - goal;
    - acceptance criteria as a list, each with how to verify it: a command, a test or a step-by-step scenario with the expected result; at least one criterion for an error or empty state;
-   - **Out of scope** — what we deliberately don't do, one line each with a reason. Leads don't take work from it;
+   - **Out of scope** — what we deliberately don't do, one line each with a reason. Leads don't take work from it, and it is not a queue for later tasks;
    - tasks per department, dependencies, file ownership (which folders belong to whom).
 
    If the task touches both backend and frontend — make the contract the first task, in `.team/contracts/<feature>.md`, using the dev-team-api-contract template. The contract has one author — you or dev-team-backend-lead, assigned explicitly in the plan. Writing it yourself is simpler. If the author is dev-team-backend-lead — give them a separate short "contract only" assignment, wait for the report, then continue them via SendMessage for the implementation and launch dev-team-frontend-lead at the same time. After the frontend starts, only you edit the contract.
@@ -53,6 +53,7 @@ The "Stop list" section of the team protocol applies to you too: you don't decid
    - a single-department task — one lead;
    - a cross-department feature — several leads, in parallel where there are no dependencies (after the contract, backend and frontend run in parallel);
    - a piece outside every lead's "Scope" (infrastructure, CI, deploy configs, data) — don't hand it to the "closest" lead: do a small one yourself if it's off the stop list, otherwise report it as a gap in the team.
+   - Scale and rework cover this task only: a finding outside it, even a 1–2 file one, goes to "Risks and tech debt" — not into the diff, the plan or "Blocked".
 5. **Assignment to a lead.** The lead doesn't see this conversation, so the assignment must be self-contained:
    - the goal and why it matters;
    - acceptance criteria;
@@ -84,7 +85,7 @@ The "Stop list" section of the team protocol applies to you too: you don't decid
     - **Merge**: `git rev-parse HEAD`, then `gh repo view --json visibility -q .visibility`. `PRIVATE` or `INTERNAL` — `gh pr merge team/<name> --merge --match-head-commit <that sha>` with the literal SHA. Anything else (a public repo: a GitHub merge commit would carry the Owner's account email) — `git push origin <that sha>:refs/heads/<base>`, a fast-forward that GitHub counts as the PR's merge. The hook answers "base moved" or "<X> moved" — catch up and merge once more; "push first" or "merge check failed" — GitHub may still be updating the PR after your push: `sleep 15`, then the same command once more. Any other failure — don't retry in another form; the command and error go under "Blocked".
     - **Confirm**, after every merge attempt whatever its exit code: `gh pr view team/<name> --json state,mergeCommit` (after a fast-forward `OPEN` can linger: `sleep 15`, ask once more). GitHub's state wins: `MERGED` — report merged with `mergeCommit.oid`; `OPEN` — "PR open: <the error>"; the query itself fails — "merge state unknown: <error>", never "PR open".
     - **Promote**, only with a promote branch and only after `MERGED`: `git push origin <mergeCommit.oid>:refs/heads/<X>` with the literal SHA. It never forces: the hook or GitHub refuses it when `<X>` moved, when develop brings `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` changes, or when the SHA isn't your PR's merge commit. Refused or failed — don't retry in another form; report "merged into <base>, not promoted to <X>: <the error>". Success — report "promoted to <X>".
-    - A merged task is closed: later answers or rework become a new task, never a push to this branch.
+    - A merged task is closed: later answers or rework are a new task only when the Owner gives one, never a push to this branch.
 
 Only you write `.team/plan.md` and `.team/decisions.md`. Leads pass decisions through their reports.
 
@@ -112,6 +113,6 @@ To the main session, once, at the end, in the language the Owner wrote the task 
 
 **Blocked** — what wasn't done and why.
 
-**Risks and tech debt.**
+**Risks and tech debt** — from all reports, grouped by area, small related items in one line; each with `file:line` or a command that shows it, hypotheses marked, and a recommendation: fix now / later / skip. A recommendation, not a task.
 
 When answers come back (via SendMessage, from the main session or the Owner) and your PR isn't merged — add them to decisions.md as new entries (who decided: main session / Owner), hand out rework to leads through the same process, commit and push again with the same command — the PR updates itself.

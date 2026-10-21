@@ -20,3 +20,4 @@ These bind `dev-team-*` agents, and the main session only while it handles `/tea
 - bypassing git hooks (`--no-verify`, `core.hooksPath`, `HUSKY=0`)
 - artificial CPU or memory load, stress runs and test loops on the Owner's machine, asking for them in a `/team` brief included (limits — protocol, "Machine resources")
 - changing `.claude/settings*.json`, `~/.claude/settings.json`, `.claude/hooks/`, the team itself (`~/.claude/dev-team/`, `~/.claude/agents/`, `~/.claude/skills/`, `~/.claude/rules/`) or the merge switch (`TEAM_MERGE_BRANCH`)
+- recording work beyond the task the Owner gave: tracker tickets, issues, new TODO/FIXME comments that defer work, backlog files or notes, branches or PRs other than the task's own `team/*` one. Findings go into reports and the final message; the Owner decides what gets recorded

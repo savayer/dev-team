@@ -207,7 +207,18 @@ test('every agent carries the guard, every lead the memory hook', () => {
     assert.match(fm, /matcher: "Bash\|Read\|Grep\|Edit\|Write"/, f);
     assert.ok(fm.includes(guard), f);
     assert.equal(fm.includes(sync), /^memory: local$/m.test(fm), f);
+    // the protocol carries the stop list; the read-only explorer goes without it
+    assert.equal(/^\s+- dev-team-protocol$/m.test(fm), f !== 'dev-team-explorer.md', f);
   }
+});
+
+test('prompts never hand findings out as separate tasks', () => {
+  const prompts = [
+    ...AGENTS.map((f) => join(ROOT, 'agents', f)),
+    ...SKILLS.map((d) => join(ROOT, 'skills', d, 'SKILL.md')).filter(existsSync),
+    join(ROOT, 'rules/dev-team.md'),
+  ];
+  for (const p of prompts) assert.doesNotMatch(read(p), /as a separate task/i, p);
 });
 
 test('core.excludesFile set through an include is honoured', () => {

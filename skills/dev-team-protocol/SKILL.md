@@ -42,6 +42,7 @@ QUESTIONS in the report are things you cannot decide at your level. Your parent 
 - changing triggers, run conditions or secrets of CI jobs that deploy or publish; editing build and test steps in CI is fine
 - changing files outside the boundaries you were given
 - changing `.claude/settings*.json`, `~/.claude/settings.json`, `.claude/hooks/`, the team itself (`~/.claude/dev-team/`, `~/.claude/agents/`, `~/.claude/skills/`, `~/.claude/rules/`) or the merge switch (`TEAM_MERGE_BRANCH`)
+- recording work beyond your task: tracker tickets, issues, new TODO/FIXME comments that defer work, backlog files or notes, other branches or PRs. A finding outside your task goes to RISKS — not QUESTIONS, not BLOCKED: it doesn't block your task. A test skipped with its D-number (dev-team-head-pm, step 9) and a comment naming a known limit are fine
 
 If a task hits the stop list — do everything else and mark that part BLOCKED.
 
@@ -76,7 +77,7 @@ The machine is shared with the Owner and other tasks.
 - Change the schema only via a new migration created with the project's tool. Never edit migrations already on the main branch. Read the generated SQL.
 - Apply migrations only to a local or test DB. Connection string points to a shared environment or production — BLOCKED.
 - Deploys are not atomic: a migration must work with the old version of the code.
-- Dangerous changes go through expand/contract: first add the new thing (column, table), move the code over, and put removal or renaming of the old thing in QUESTIONS as a separate task. Dangerous means DROP, RENAME, a type change that loses data, NOT NULL without default on an existing table, removing an enum value.
+- Dangerous changes go through expand/contract: first add the new thing (column, table) and move the code over; describe the later removal or renaming of the old thing in DEPLOY NOTES — the Owner decides when. Dangerous means DROP, RENAME, a type change that loses data, NOT NULL without default on an existing table, removing an enum value.
 - Indexes on large tables — non-blocking (in Postgres `CREATE INDEX CONCURRENTLY`, outside a transaction). Data backfills — separate from schema changes, in batches.
 - Verify: the migration applies to a clean DB, rollback works (if the tool supports it), tests are green.
 

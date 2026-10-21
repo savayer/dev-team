@@ -119,7 +119,7 @@ Every isolated agent of the session gets an empty slot `<workspace>/.team-worktr
 
 - A worktree has only tracked files. If the app needs `.env` for `dev-team-ui-tester`, list it in [`.worktreeinclude`](https://code.claude.com/docs/en/worktrees). No browser for the tester — `npx playwright install chromium`.
 - Tasks branch off `develop` when `origin/develop` exists, otherwise off the default branch.
-- `git push`, the word `gh` and secret paths trip the guard anywhere in a command, quotes and heredocs included; the other bans skip quoted text. Put such text in a file with the Edit tool. The guard covers team agents only — the main session relies on the rules file and `auto` mode. It's a safety net, not a [sandbox](https://code.claude.com/docs/en/sandboxing).
+- `git push`, the word `gh` and secret paths trip the guard anywhere in a command, quotes and heredocs included; the other bans skip quoted text. Put such text in a file with the Edit tool. The guard covers team agents only — the main session relies on the rules file and `auto` mode. It doesn't check task scope either: the ban on recording new work (tickets, issues, follow-up PRs) lives in the prompts. It's a safety net, not a [sandbox](https://code.claude.com/docs/en/sandboxing).
 - `auto` mode pauses and starts asking after 3 classifier blocks in a row or 20 per session; lead memory writes under `.claude/` go through it. Overnight — keep the Mac awake.
 - Each task's worktree (`.claude/worktrees/agent-<id>`) stays after the task so the PM can be resumed; remove it after the merge with the commands from the report.
 - The queue lives in the main session: after a restart, tasks that hadn't started are lost — resend them.
