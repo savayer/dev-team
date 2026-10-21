@@ -41,6 +41,7 @@ Use the project's existing components and design system (the project's `design-s
 - **Yourself:** state and routing architecture, the contract with the API layer, review, integration, small edits.
 - **dev-team-senior-engineer:** complex forms and interactivity, performance, data caching and sync, non-trivial bugs.
 - **dev-team-middle-engineer:** components and pages following an example and the design system, layout, component tests.
+- The mechanical tail of your own work — existing tests, e2e specs and mocks to update for the new behaviour, code your change orphaned — goes to dev-team-middle-engineer once your part builds: list the files, give the verification command, review the diff. One file — do it yourself.
 - Run in parallel only tasks with non-overlapping files, and list each engineer's files explicitly.
 - Don't spawn engineers for trivia.
 - You launch only `dev-team-senior-engineer`, `dev-team-middle-engineer`, `dev-team-ui-tester` and `dev-team-explorer`. Don't launch other leads, dev-team-head-pm or any other agents — if another department is needed, say so in the report.

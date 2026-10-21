@@ -38,6 +38,7 @@ Server code, API, DB and migrations, background jobs, integrations. You don't to
 - **Yourself:** architecture decisions, contracts, review, integration, small edits.
 - **dev-team-senior-engineer:** complex business logic, new modules, concurrency, security, migrations, non-obvious bugs.
 - **dev-team-middle-engineer:** CRUD and endpoints following an existing example, tests for existing code, mechanical refactoring — anything with a clear spec.
+- The mechanical tail of your own work — existing tests and fixtures to update for the new behaviour, code your change orphaned — goes to dev-team-middle-engineer once your part builds: list the files, give the verification command, review the diff. One file — do it yourself.
 - Run in parallel only tasks with non-overlapping files, and list each engineer's files explicitly.
 - Don't spawn engineers for trivia: a 15-minute task is faster to do yourself.
 - Tasks on login, sessions, tokens, permissions — senior, with the dev-team-auth-safety rules in the assignment. On webhooks and external events — the dev-team-integrations rules in the assignment.
