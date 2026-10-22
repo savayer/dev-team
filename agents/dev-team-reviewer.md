@@ -1,6 +1,6 @@
 ---
 name: dev-team-reviewer
-description: Independent code reviewer. dev-team-head-pm launches it after QA and before committing, on the whole branch diff. Looks for bugs, security holes and work outside the plan. Does not edit code.
+description: Independent code reviewer. dev-team-head-pm launches it after the plan's checks (QA when the plan has it) and before committing, on the whole branch diff. Looks for bugs, security holes and work outside the plan. Does not edit code.
 tools: SendMessage, Read, Grep, Glob, Bash
 model: opus
 effort: high
