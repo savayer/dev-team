@@ -1,66 +1,77 @@
 # AI dev team for Claude Code
 
+Type `/team <task>` in any git repo and walk away. You get a PR from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged unless you turn on [merge mode](#merge-mode).
+
+The team is installed once per machine, into `~/.claude`, as links to this repo. Projects need nothing in git.
+
+## How it works
+
+```mermaid
+flowchart TD
+  owner(["Owner"]) -->|"/team task"| main["Main session · dispatcher<br>intake, queue, answers to the PM<br>tracker, final report"]
+  main -->|brief| pm
+  pm -.->|"report, questions"| main
+  main -.->|"report, your questions"| owner
+  subgraph wt["Task worktree"]
+    pm["head-pm · Opus<br>plan, level, QA decision, contract<br>small tasks itself · acceptance, PR, merge"]
+    pm -->|search| ex["explorer · Haiku<br>read-only code search<br>for head-pm and the leads"]
+    pm -->|"after the checks"| rv["reviewer · Opus<br>whole diff, edits nothing<br>security mode on risky diffs"]
+    pm --> be["backend-lead<br>API, DB, migrations<br>heavy: Opus · else Sonnet"]
+    pm --> fe["frontend-lead<br>UI, state, styles<br>heavy: Opus · else Sonnet"]
+    pm --> qa["qa-lead · when the plan needs it<br>acceptance criteria, e2e<br>feature: Sonnet · else Opus"]
+    be & fe & qa --> sr["senior · Opus<br>hard logic, auth"]
+    be & fe & qa --> md["middle · Sonnet<br>by example, tests"]
+    fe & qa --> ui["ui-tester · Sonnet<br>browser smoke test, Playwright"]
+  end
+  classDef opus stroke:#B0442A,stroke-width:2px
+  classDef sonnet stroke:#1F7563,stroke-width:2px
+  classDef haiku stroke:#5C6B16,stroke-width:2px
+  class pm,rv,sr opus
+  class md,ui sonnet
+  class ex haiku
 ```
-Owner ↔ main session (plain `claude`)
-          └── dev-team-head-pm (in its own worktree)
-                ├── dev-team-backend-lead  ── dev-team-senior-engineer / dev-team-middle-engineer
-                ├── dev-team-frontend-lead ── dev-team-senior-engineer / dev-team-middle-engineer / dev-team-ui-tester
-                ├── dev-team-qa-lead       ── dev-team-senior-engineer / dev-team-middle-engineer / dev-team-ui-tester
-                └── dev-team-reviewer      (read-only, before commit)
-dev-team-explorer — read-only code search for the PM and the leads
+
+Every agent in the worktree runs under the [guard](#good-to-know). The PM reads the code, picks the level and launches only the agents the plan needs:
+
+| Level | When | Who writes code | Leads, QA lead |
+| --- | --- | --- | --- |
+| `small` | 1–2 files of product code (tests don't count), obvious solution — even if risky or you asked for "full team" / "on Opus" | the PM | frontend lead verifies on Sonnet, or QA lead on Opus if QA runs |
+| `feature` | everything else | leads, middle when needed | Sonnet |
+| `heavy` | new project or module, architecture decision, cross-cutting refactor, a change to how auth, sessions or permissions work, payments, new personal data, file uploads, secrets, schema change, migration or one-off data operation, concurrency, bug with no hypothesis; or you wrote "full team" / "on Opus" | leads, senior, middle | Opus |
+
+The level only goes up: a `heavy` trigger found later, or a `feature` lead stuck for two rounds, and the PM relaunches that part on Opus. QA is always in the plan for auth, sessions, permissions, payments, personal data, file uploads, secrets, a backend↔frontend contract or a migration.
+
+```
+branch → plan (criteria, level, QA) → contract (backend + frontend) → code → acceptance
+       → QA (if planned) → review → rework, re-check, re-review → PR → merge (merge mode, green CI)
 ```
 
-Type `/team <task>` in any git repo and walk away. The main session hands the task to the PM in its own git worktree and answers the PM's questions itself. You get a PR from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged unless you turn on [merge mode](#merge-mode).
+Rework gets two rounds per bug; on `feature` the level is raised first, then the bug goes under "Blocked".
 
-The tree shows who can be launched; a task gets only the agents its level and plan need. The PM picks the level: `small` — it makes a 1–2 file change itself; `feature` — department leads and QA run on Sonnet; `heavy` (a new module, architecture, auth, data, migrations, concurrency) — leads and QA on their default Opus, engineers on their own models. QA runs when the plan needs it, always for auth, sessions, permissions, personal data, payments, file uploads, secrets, a backend↔frontend contract or a migration.
-
-Several tasks run in parallel, each in its own worktree, at most 3 at once by default ([`TEAM_MAX_TASKS`](#customization)). Tasks that touch the same files run in parallel only in merge mode; without it the team warns you and waits until you say "now" or "after <task>".
-
-The team is installed once per machine, in `~/.claude`, as links to this repo. Projects need nothing in git.
-
-## What's inside
-
-| Path | Purpose |
-| --- | --- |
-| `rules/dev-team.md` | Team boundaries, loaded in every session (the `auto` mode classifier sees them too) |
-| `skills/team/` | `/team`: intake, queue, answers, final report. Owner-only |
-| `agents/dev-team-head-pm.md` | PM: plans, delegates to leads, accepts the work, pushes, opens the PR, reports |
-| `agents/dev-team-*-lead.md` | Department leads: breakdown, delegation to engineers, review, integration |
-| `agents/dev-team-senior-engineer.md`, `dev-team-middle-engineer.md` | Executors |
-| `agents/dev-team-reviewer.md` | Review of the branch diff before commit, security mode for auth/payments/personal data. Edits nothing |
-| `agents/dev-team-explorer.md` | Read-only code search, used instead of the built-in `Explore` so the guard covers it |
-| `agents/dev-team-ui-tester.md` | Browser smoke test via Playwright MCP |
-| `skills/dev-team-*/` | Shared protocol, backend ↔ frontend contract, auth and webhook checks |
-| `hooks/guard.mjs` | Guard for team agents only. Only the PM may push its `team/*` branch, open a PR and, in merge mode, merge it (and fast-forward `master`/`main` to that merge). Blocks every other push, merge and `gh` call, publishing, cluster and infrastructure changes, hook bypass, `git stash`, touching `.env*`, `*.pem`, `secrets/` |
-| `hooks/sync-memory.mjs` | Copies lead memory from a task's worktree back to the main checkout |
-| `hooks/worktree-slot.mjs` | `WorktreeCreate` hook of a [multi-repo workspace](#multi-repo-workspace): an empty slot per isolated agent |
-| `hooks/slot-init.mjs` | Run by the PM: turns its slot into a worktree of the task's repo on the base |
-| `hooks/merge-branch.mjs` | Merge mode's base for a checkout, shared by the guard, the PM and `/team`: the env in a single repo, the repo's own settings in a multi-repo workspace |
-| `templates/design-system/` | Design system skill template — copy into a project's `.claude/skills/design-system/` |
-| `install.mjs` | Links the team into `~/.claude` |
+Tasks branch off `develop` when `origin/develop` exists, otherwise off the default branch. Releases and deploys are never part of a task.
 
 ## Install
 
-1. `claude update` — subagents must be able to launch subagents (v2.1.219+). Install `node`: the installer and the hooks run on it.
+1. `claude update` (v2.1.219+: subagents launch subagents) and install `node` — the installer and hooks run on it.
 2. `git clone <this repo's URL> ~/dev-team`
-3. Run `node ~/dev-team/install.mjs` from your own terminal, not through Claude. It links the agents, skills and rule into `~/.claude`, sets `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=3` in `~/.claude/settings.json` and adds `.claude/worktrees/`, `.claude/agent-memory-local/`, `.team/` to your global git ignore. It checks everything first; on any conflict it stops and changes nothing.
+3. From your own terminal, not through Claude: `node ~/dev-team/install.mjs`. It links the agents, skills and rule into `~/.claude`, sets `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=3` in `~/.claude/settings.json` and adds `.claude/worktrees/`, `.claude/agent-memory-local/`, `.team/` to your global git ignore. It checks everything first; on any conflict it changes nothing.
 4. `gh auth login` — the PM opens PRs with `gh`; without it a task ends at a pushed branch.
-5. In your **user** `~/.claude/settings.json` (a project file can't set it): `{ "permissions": { "defaultMode": "auto" } }`, or launch with `--permission-mode auto`. With `acceptEdits` every engineer's Bash command becomes a prompt to you; `bypassPermissions` only in an isolated container.
-6. Start a new `claude` session: `/agents` lists `dev-team-*`. In a repo with an `origin`, type `/team <task>`.
+5. `{ "permissions": { "defaultMode": "auto" } }` in your **user** `~/.claude/settings.json` (a project file can't set it), or launch with `--permission-mode auto`. With `acceptEdits` every engineer's Bash command becomes a prompt to you; `bypassPermissions` only in an isolated container.
+6. New `claude` session: `/agents` lists `dev-team-*`. In a repo with an `origin`, type `/team <task>`.
 
-**Update:** `git -C ~/dev-team pull`. Re-run the installer only when the team adds, drops or renames a file. The checkout is live — switching its branch switches the team everywhere, so experiment in a separate worktree of this repo.
-
+**Update:** `git -C ~/dev-team pull`; re-run the installer only when the team adds, drops or renames a file. The checkout is live — switching its branch switches the team everywhere, so experiment in a separate worktree of this repo.
 **Uninstall:** `node ~/dev-team/install.mjs --uninstall` removes its links and settings changes; the global ignore lines stay.
 
-**Old per-project install:** in such a project delete `.claude/agents/{head-pm,backend-lead,frontend-lead,qa-lead,senior-engineer,middle-engineer,reviewer,ui-tester}.md`, `.claude/skills/{team,team-protocol,api-contract,auth-safety,integrations}/`, `.claude/hooks/{guard-push,sync-memory}.mjs`, `.claude/dev-team.json`, the team block in `.claude/CLAUDE.md`, the team's hooks, `env` and permissions in `.claude/settings.json`, and its line in `.worktreeinclude`. Rename lead memory `.claude/agent-memory-local/<lead>` → `dev-team-<lead>`; committed `.claude/agent-memory/` — copy it there and `git rm -r --cached` it.
+<details>
+<summary>Migrating from the old per-project install</summary>
+
+In such a project delete `.claude/agents/{head-pm,backend-lead,frontend-lead,qa-lead,senior-engineer,middle-engineer,reviewer,ui-tester}.md`, `.claude/skills/{team,team-protocol,api-contract,auth-safety,integrations}/`, `.claude/hooks/{guard-push,sync-memory}.mjs`, `.claude/dev-team.json`, the team block in `.claude/CLAUDE.md`, the team's hooks, `env` and permissions in `.claude/settings.json`, and its line in `.worktreeinclude`. Rename lead memory `.claude/agent-memory-local/<lead>` → `dev-team-<lead>`; committed `.claude/agent-memory/` — copy it there and `git rm -r --cached` it.
+
+</details>
 
 ## What the project CLAUDE.md needs
 
-Nothing is required: without it the PM finds commands in `package.json`, `Makefile` or the README. With it, results are more precise and cheaper:
-
-1. **Verification commands** — install without rewriting the lockfile (`npm ci` and equivalents), tests, linter, types, build. Acceptance depends on them.
-2. **If there's a UI** — run command, URL, test login (no real secrets). Web only: for a mobile app the team lists scenarios for you to check on a device.
-3. **Nice to have** — example files, stack, structure.
+Nothing is required: without it the PM finds commands in `package.json`, `Makefile` or the README. With it results are more precise and cheaper. List the verification commands — install without rewriting the lockfile (`npm ci` and equivalents), tests, linter, types, build; acceptance depends on them. For a web UI add the run command, URL and a test login (no real secrets); for a mobile app the team lists scenarios for you to check on a device. Nice to have: example files, stack, structure.
 
 ```markdown
 ## Commands
@@ -71,25 +82,33 @@ Nothing is required: without it the PM finds commands in `package.json`, `Makefi
 
 ## Usage
 
-`/team <task>`, several separated by `;`. Without `/team`, `claude` is a normal session. Decisions go to `.team/decisions.md` in the task's worktree and into the PR description. The report ends with "Questions for you", each with a default: answer briefly ("1 — yes, 3 — option B") and the PM reworks the same PR. Rework after a merge is a new `/team` task. The report comes in the language of your task.
+`/team <task>`, several separated by `;`. Without `/team`, `claude` is a normal session (unless a CLAUDE.md has `dev-team: self-launch`, see `rules/dev-team.md`). The report comes in the language of your task and has "Questions for you", each with a default: answer briefly ("1 — yes, 3 — option B") and the PM reworks the same PR. Rework after a merge is a new `/team` task. Decisions go to `.team/decisions.md` in the task's worktree and into the PR description.
+
+By default up to 3 tasks run at once, each in its own worktree ([`TEAM_MAX_TASKS`](#customization)). Tasks that touch the same files start together on their own only in merge mode; without it the team warns you and waits until you say "now" or "after <task>".
 
 ## Merge mode
 
-Off by default: the team opens PRs, you merge them. To turn it on, add to the project's `.claude/settings.local.json` (not committed):
+Off by default: the team opens PRs, you merge them. To turn it on, put this into the project's `.claude/settings.local.json` (not committed) and start a new session; `/team` then prints "merge mode: on" in its first line. Remove the line and start a new session to turn it off.
 
 ```json
 { "env": { "TEAM_MERGE_BRANCH": "develop" } }
 ```
 
-and start a new session — `/team` prints "merge mode: on" in its first line. The value is the team's base (`develop`, or the default branch when there's no `develop`): the team merges into it only. Or `master`/`main` in a repo with `develop`: the team merges into `develop`, then fast-forwards `master`/`main` to that merge, so both get all the work ("merge mode: on → develop, then master"). Never a branch that deploys on push. Any other value merges nothing. Remove the line and start a new session to turn it off.
-
-The PM then merges its own PR with a merge commit once review passed with no critical/major findings (and QA, when the plan has it), CI is green when the PR has checks, nothing is blocked, and the branch has caught up with the latest base (and with `master`/`main` when it promotes) — conflicts resolved, checks green again. Open questions don't stop the merge. In a public repo the PM fast-forwards the base to the PR head instead of a GitHub merge commit, which would carry your account's name and email. The promotion is a fast-forward only: when `master`/`main` moved, or `develop` would bring protected files to it, it stays with you and the report says "not promoted". A PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude` is never merged by the team. Roll back with `git revert -m 1 <merge sha>` (the SHA is in the report), newest merge first; after a fast-forward, revert the task's commits listed in the report.
+- **Value:** `develop`, or the default branch when there's no `develop`. `master`/`main` in a repo with `develop` means: merge into `develop`, then fast-forward `master`/`main` to that merge. Never a branch that deploys on push; any other value merges nothing.
+- **When:** review has no critical/major findings, planned QA passed, no test skipped, CI is green (if the PR has checks), nothing is blocked, and the branch has caught up with the base (and `master`/`main` when promoting) — conflicts resolved, checks green again. Open questions don't block the merge.
+- **How:** a merge commit. In a public repo the PM fast-forwards the base to the PR head instead: a GitHub merge commit would carry your name and email.
+- **Never merged:** a PR that touches `.claude/`, `.github/`, `.husky/`, `.mcp.json` or `.worktreeinclude`.
+- **Promotion** is fast-forward only: if `master`/`main` moved, or would get protected files from `develop`, the report says "not promoted" and you promote by hand.
+- **Rollback:** `git revert -m 1 <merge sha>` from the report, newest first; after a fast-forward, revert the commits the report lists.
 
 The guard catches agent mistakes, not a hostile agent: agents run with your GitHub credentials. For a hard guarantee use a bot account and branch protection.
 
 ## Multi-repo workspace
 
-One session for several repos kept side by side in a plain folder that isn't a git repo itself:
+One session for several repos kept side by side in a plain folder that isn't a git repo. `/team` picks each task's repo from the ticket and asks when unclear; tasks for different repos run in parallel.
+
+<details>
+<summary>Setup</summary>
 
 ```
 ~/work/acme/                      ← run claude here
@@ -99,33 +118,53 @@ One session for several repos kept side by side in a plain folder that isn't a g
 └── .team-worktrees/agent-<id>/   ← task worktrees, made by the team
 ```
 
-`/team` picks each task's repo from the ticket and asks when that's unclear. Tasks for different repos run in parallel. Setup:
-
 1. Add the hook to `<workspace>/.claude/settings.json`:
    ```json
    {"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"node \"$HOME/.claude/dev-team/hooks/worktree-slot.mjs\""}]}]}}
    ```
 2. Launch `claude` in the workspace interactively once and trust the folder: hooks of an untrusted folder don't run.
-3. Merge mode is per repo: put the `TEAM_MERGE_BRANCH` line into `<repo>/.claude/settings.local.json`. The workspace's own env is ignored, so a repo without the line has merge mode off.
+3. Merge mode is per repo: the `TEAM_MERGE_BRANCH` line goes into `<repo>/.claude/settings.local.json`; the workspace's own env is ignored, so a repo without the line has merge mode off.
 
-Every isolated agent of the session gets an empty slot `<workspace>/.team-worktrees/agent-<id>`. The PM turns it into a worktree of its repo, on `develop` or the default branch, and copies the repo's `.worktreeinclude` files. The hook only does this for the workspace: sessions opened inside a repo are unaffected.
+The hook gives each isolated agent an empty slot; the PM turns it into a worktree of the task's repo and copies the repo's `.worktreeinclude` files. Sessions opened inside a repo are unaffected.
+
+</details>
 
 ## Customization
 
-- **Parallel tasks.** `TEAM_MAX_TASKS` in the `env` of `~/.claude/settings.json` — how many PM tasks run at once on this machine, 3 when unset. Every task installs, builds and runs tests in its own worktree: raise it where cores, memory and disk allow, then start a new session.
-- **Cost.** Seniority is model + effort: leads and senior on `opus`, middle on `sonnet`. On `feature` tasks the PM launches the leads and the QA lead on `sonnet` through the Agent `model` parameter; `heavy` keeps the frontmatter `opus`, engineers keep theirs. Cheaper still — senior on `sonnet`, leads on `effort: medium`. With `CLAUDE_CODE_SUBAGENT_MODEL` set, Claude Code before 2.1.251 ignores the parameter; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` or a mod's `agent.spawn` hook overrides it too.
-- **New department.** Copy `agents/dev-team-backend-lead.md` to `agents/dev-team-<name>-lead.md`, rewrite `name`, `description`, "Scope" and "Who does what", keep the `hooks:` block (it puts the guard on the agent). Add the department to `dev-team-head-pm.md` (first paragraph and "You launch only"), the "Hierarchy" line of `dev-team-protocol` and the diagram above, then re-run the installer.
-- **Stack knowledge.** For one project — skills in its `.claude/skills/`. For every project — `skills/dev-team-*` here plus the agents' `skills:` field. Write only what the code doesn't show, under 60 lines.
+- **Parallel tasks.** `TEAM_MAX_TASKS` in the `env` of `~/.claude/settings.json`, 3 when unset. Each task installs, builds and tests in its own worktree: raise it only where cores, memory and disk allow, then start a new session.
+- **Cost.** Seniority is `model` + `effort` in the agents' frontmatter; on `feature` the PM passes the Agent `model: "sonnet"` parameter to the leads and the QA lead. Cheaper still — senior on `sonnet`, leads on `effort: medium`. With `CLAUDE_CODE_SUBAGENT_MODEL` set, Claude Code before 2.1.251 ignores the parameter; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` or a mod's `agent.spawn` hook overrides it too.
+- **New department.** Copy `agents/dev-team-backend-lead.md` to `agents/dev-team-<name>-lead.md`, rewrite `name`, `description`, "Scope" and "Who does what", keep the `hooks:` block (it puts the guard on the agent). Add the department to `dev-team-head-pm.md` (first paragraph and "You launch only"), the "Hierarchy" line of `dev-team-protocol` and the [diagram](#how-it-works), then re-run the installer.
+- **Stack knowledge.** Skills in a project's `.claude/skills/`, or `skills/dev-team-*` here plus the agents' `skills:` field for every project. Only what the code doesn't show, under 60 lines.
 - **Deploy CLIs** the team must never run (`vercel --prod`, `fly deploy`, …): add them to `BANS` in `hooks/guard.mjs`, or to `permissions.deny` in a project's `.claude/settings.json`.
 
 ## Good to know
 
-- A worktree has only tracked files. If the app needs `.env` for `dev-team-ui-tester`, list it in [`.worktreeinclude`](https://code.claude.com/docs/en/worktrees). No browser for the tester — `npx playwright install chromium`.
-- Tasks branch off `develop` when `origin/develop` exists, otherwise off the default branch.
-- `git push`, the word `gh` and secret paths trip the guard anywhere in a command, quotes and heredocs included; the other bans skip quoted text. Put such text in a file with the Edit tool. The guard covers team agents only — the main session relies on the rules file and `auto` mode. It doesn't check task scope either: the ban on recording new work (tickets, issues, follow-up PRs) lives in the prompts. It's a safety net, not a [sandbox](https://code.claude.com/docs/en/sandboxing).
+- **The guard** lets only the PM push its `team/*` branch, open a PR and, in merge mode, merge it and fast-forward `master`/`main`. Every other push and `gh` call is blocked, except read-only ones (`gh pr view`, `gh pr checks`, …), and so are publishing, cluster and infrastructure changes, hook bypass, `git stash`, and `.env` files (not `.env.example`), `*.pem`, `secrets/`. `git push`, the word `gh` and secret paths trip it even inside quotes and heredocs, the other bans skip quoted text — put such text in a file with Edit. Team agents only: the main session relies on the rules file and `auto` mode. The ban on recording new work (tickets, issues, follow-up PRs) lives in the prompts. A safety net, not a [sandbox](https://code.claude.com/docs/en/sandboxing).
+- A worktree has only tracked files: list the `.env` that `dev-team-ui-tester` needs in [`.worktreeinclude`](https://code.claude.com/docs/en/worktrees). No browser for the tester — `npx playwright install chromium`.
 - `auto` mode pauses and starts asking after 3 classifier blocks in a row or 20 per session; lead memory writes under `.claude/` go through it. Overnight — keep the Mac awake.
-- Each task's worktree (`.claude/worktrees/agent-<id>`) stays after the task so the PM can be resumed; remove it after the merge with the commands from the report.
-- The queue lives in the main session: after a restart, tasks that hadn't started are lost — resend them.
-- Lead memory is local to this machine: `.claude/agent-memory-local/` in each project, ignored by git.
+- A task's worktree (`.claude/worktrees/agent-<id>`) stays so the PM can be resumed; remove it after the merge with the report's commands.
+- The queue lives in the main session: a restart loses tasks that hadn't started — resend them.
+- Lead memory is per machine: `.claude/agent-memory-local/` in each project, git-ignored.
 - Don't install agent collections (e.g. VoltAgent) globally: team agents would see them. A project agent named like a team agent replaces it in that project.
-- Your `~/.claude/CLAUDE.md` loads into every team agent: keep it small, and avoid process rules like "always ask the user".
+- Your `~/.claude/CLAUDE.md` loads into every team agent: keep it small, without process rules like "always ask the user".
+
+## What's inside
+
+<details>
+<summary>Files of this repo</summary>
+
+| Path | Purpose |
+| --- | --- |
+| `agents/` | The diagram's agents as `dev-team-<name>.md`; senior and middle are `dev-team-senior-engineer.md`, `dev-team-middle-engineer.md`. Leads break work down, delegate, review and integrate. `dev-team-explorer` replaces the built-in `Explore` so the guard covers it |
+| `rules/dev-team.md` | Team boundaries, loaded in every session (the `auto` mode classifier sees them too) |
+| `skills/team/` | `/team`: intake, queue, answers, final report. Owner-only |
+| `skills/dev-team-*/` | Shared protocol, backend ↔ frontend contract, auth and webhook checks |
+| `hooks/guard.mjs` | The guard, see [Good to know](#good-to-know) |
+| `hooks/sync-memory.mjs` | Copies lead memory from a task's worktree back to the main checkout |
+| `hooks/worktree-slot.mjs` | `WorktreeCreate` hook of a [multi-repo workspace](#multi-repo-workspace): an empty slot per isolated agent |
+| `hooks/slot-init.mjs` | Run by the PM: turns its slot into a worktree of the task's repo on the base |
+| `hooks/merge-branch.mjs` | Merge mode's base for a checkout, shared by the guard, the PM and `/team`: the env in a single repo, the repo's own settings in a multi-repo workspace |
+| `templates/design-system/` | Design system skill template — copy into a project's `.claude/skills/design-system/` |
+| `install.mjs` | Links the team into `~/.claude` |
+
+</details>
