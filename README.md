@@ -14,7 +14,7 @@ Type `/team <task>` in any git repo and walk away. The main session hands the ta
 
 The tree shows who can be launched; a task gets only the agents its level and plan need. The PM picks the level: `small` — it makes a 1–2 file change itself; `feature` — department leads and QA run on Sonnet; `heavy` (a new module, architecture, auth, data, migrations, concurrency) — leads and QA on their default Opus, engineers on their own models. QA runs when the plan needs it, always for auth, sessions, permissions, personal data, payments, file uploads, secrets, a backend↔frontend contract or a migration.
 
-Several tasks run in parallel, each in its own worktree, at most 3 at once. Tasks that touch the same files run in parallel only in merge mode; without it the team warns you and waits until you say "now" or "after <task>".
+Several tasks run in parallel, each in its own worktree, at most 3 at once by default ([`TEAM_MAX_TASKS`](#customization)). Tasks that touch the same files run in parallel only in merge mode; without it the team warns you and waits until you say "now" or "after <task>".
 
 The team is installed once per machine, in `~/.claude`, as links to this repo. Projects need nothing in git.
 
@@ -112,6 +112,7 @@ Every isolated agent of the session gets an empty slot `<workspace>/.team-worktr
 
 ## Customization
 
+- **Parallel tasks.** `TEAM_MAX_TASKS` in the `env` of `~/.claude/settings.json` — how many PM tasks run at once on this machine, 3 when unset. Every task installs, builds and runs tests in its own worktree: raise it where cores, memory and disk allow, then start a new session.
 - **Cost.** Seniority is model + effort: leads and senior on `opus`, middle on `sonnet`. On `feature` tasks the PM launches the leads and the QA lead on `sonnet` through the Agent `model` parameter; `heavy` keeps the frontmatter `opus`, engineers keep theirs. Cheaper still — senior on `sonnet`, leads on `effort: medium`. With `CLAUDE_CODE_SUBAGENT_MODEL` set, Claude Code before 2.1.251 ignores the parameter; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` or a mod's `agent.spawn` hook overrides it too.
 - **New department.** Copy `agents/dev-team-backend-lead.md` to `agents/dev-team-<name>-lead.md`, rewrite `name`, `description`, "Scope" and "Who does what", keep the `hooks:` block (it puts the guard on the agent). Add the department to `dev-team-head-pm.md` (first paragraph and "You launch only"), the "Hierarchy" line of `dev-team-protocol` and the diagram above, then re-run the installer.
 - **Stack knowledge.** For one project — skills in its `.claude/skills/`. For every project — `skills/dev-team-*` here plus the agents' `skills:` field. Write only what the code doesn't show, under 60 lines.
