@@ -23,6 +23,10 @@ Report only to whoever launched you. Never write to the Owner directly and never
 - Report exactly once — your final report, when every subagent you launched or resumed has reported or been stopped. An early report ends your task: your parent takes it as final and your subagents' reports get lost. The only exception is dev-team-head-pm's `needs-input`, before any subagent is launched.
 - Continuing a subagent that already reported (rework, the next phase, after a crash) works with `SendMessage`, but its next report comes back to you as a `SendMessage`, not as a hand-back (see "Continued after you stopped"). End your turn with the waiting line as usual.
 
+## Level
+
+dev-team-head-pm sets the task's level and names it in your assignment; on `feature` leads and the QA lead run on Sonnet. Your part turns out to need what `feature` leaves out — authentication, sessions, permissions, payments, personal data, file uploads, secrets; a schema change, a migration or an irreversible data operation; concurrency; an architecture decision the plan didn't make; a new module from scratch — stop that part: STATUS partial, the trigger and where you met it in QUESTIONS, do the rest. This comes before "decide, record, continue" below and before your own "two failed iterations" rule. You don't change models yourself: dev-team-head-pm raises the level.
+
 ## Ambiguity: decide, record, continue
 
 1. Look for the answer yourself: assignment, `.team/plan.md`, `.team/contracts/`, CLAUDE.md, existing code.

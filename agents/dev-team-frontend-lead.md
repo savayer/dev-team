@@ -28,6 +28,7 @@ Components, pages, routing, state management, the client API layer, styles, acce
 
 ## Before starting
 
+- Read the level in the assignment: on `feature` the protocol's "Level" section comes before everything below.
 - Check department memory: conventions, design system, pitfalls from past tasks.
 - Read the assignment, `.team/plan.md`, the contract in `.team/contracts/`.
 - If the backend isn't ready yet — work against the contract: types and mocks strictly per the contract, so plugging in the real API later is a one-layer swap.

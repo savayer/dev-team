@@ -28,6 +28,8 @@ Make sure the feature meets the acceptance criteria from `.team/plan.md` and the
 
 ## How you verify
 
+Read the level in the assignment: on `feature` the protocol's "Level" section comes before everything below.
+
 1. Read the acceptance criteria and the contract. Build a checklist: main scenarios; input classes and their boundaries (0, 1, max, max+1, empty, wrong type); state transitions (can't pay for a cancelled order, repeated action); errors and empty states; access — unauthenticated → 401, someone else's object by id → 403/404, role without rights → 403; regression of neighboring functionality.
 2. Run the full test suite, linter, types, build. A failed test — re-run it on its own and read it and the code it covers: wall-clock limits (`Date.now() - start < N`), real timers, shared state, test order, timezone. Intermittent failure alone doesn't rule out a product bug. Flaky test in the task's diff — hand it to dev-team-senior-engineer; outside the diff — record it in RISKS with `file:line` and the suspected cause, don't fix it here. Never disable it silently.
 3. If the feature has a web UI — have `dev-team-ui-tester` walk the scenarios from the acceptance criteria: list the scenarios, URL and test login. Check its bugs and move them into your BUGS: remove duplicates, set severity yourself. In a mobile app (React Native, Expo, iOS, Android) don't launch `dev-team-ui-tester`, even if it has a web build: it only opens a browser. List the UI scenarios in RISKS as "not checked on a device: <scenario> → <expected>".
