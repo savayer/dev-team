@@ -12,7 +12,7 @@ dev-team-explorer — read-only code search for the PM and the leads
 
 Type `/team <task>` in any git repo and walk away. The main session hands the task to the PM in its own git worktree and answers the PM's questions itself. You get a PR from a `team/<task>` branch and one report: what was done, decisions made without you, and the few questions only you can answer, each with a default. Your branches and working copy stay untouched; nothing is merged unless you turn on [merge mode](#merge-mode).
 
-The tree shows who can be launched; a task gets only the agents its level and plan need. The PM picks the level: `small` — it makes a 1–2 file change itself; `feature` — department leads and QA run on Sonnet; `heavy` (a new module, architecture, auth, data, migrations, concurrency) — everyone on their default Opus. QA runs when the plan needs it, always for auth, personal data, payments, a backend↔frontend contract or a migration.
+The tree shows who can be launched; a task gets only the agents its level and plan need. The PM picks the level: `small` — it makes a 1–2 file change itself; `feature` — department leads and QA run on Sonnet; `heavy` (a new module, architecture, auth, data, migrations, concurrency) — leads and QA on their default Opus, engineers on their own models. QA runs when the plan needs it, always for auth, sessions, permissions, personal data, payments, file uploads, secrets, a backend↔frontend contract or a migration.
 
 Several tasks run in parallel, each in its own worktree, at most 3 at once. Tasks that touch the same files run in parallel only in merge mode; without it the team warns you and waits until you say "now" or "after <task>".
 
@@ -112,7 +112,7 @@ Every isolated agent of the session gets an empty slot `<workspace>/.team-worktr
 
 ## Customization
 
-- **Cost.** Seniority is model + effort: leads and senior on `opus`, middle on `sonnet`. On `feature` tasks the PM launches the leads and the QA lead on `sonnet` through the Agent `model` parameter; `heavy` keeps the frontmatter `opus`, engineers keep theirs. Cheaper still — senior on `sonnet`, leads on `effort: medium`. With `CLAUDE_CODE_SUBAGENT_MODEL` set, Claude Code before 2.1.251 ignores the parameter.
+- **Cost.** Seniority is model + effort: leads and senior on `opus`, middle on `sonnet`. On `feature` tasks the PM launches the leads and the QA lead on `sonnet` through the Agent `model` parameter; `heavy` keeps the frontmatter `opus`, engineers keep theirs. Cheaper still — senior on `sonnet`, leads on `effort: medium`. With `CLAUDE_CODE_SUBAGENT_MODEL` set, Claude Code before 2.1.251 ignores the parameter; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` or a mod's `agent.spawn` hook overrides it too.
 - **New department.** Copy `agents/dev-team-backend-lead.md` to `agents/dev-team-<name>-lead.md`, rewrite `name`, `description`, "Scope" and "Who does what", keep the `hooks:` block (it puts the guard on the agent). Add the department to `dev-team-head-pm.md` (first paragraph and "You launch only"), the "Hierarchy" line of `dev-team-protocol` and the diagram above, then re-run the installer.
 - **Stack knowledge.** For one project — skills in its `.claude/skills/`. For every project — `skills/dev-team-*` here plus the agents' `skills:` field. Write only what the code doesn't show, under 60 lines.
 - **Deploy CLIs** the team must never run (`vercel --prod`, `fly deploy`, …): add them to `BANS` in `hooks/guard.mjs`, or to `permissions.deny` in a project's `.claude/settings.json`.

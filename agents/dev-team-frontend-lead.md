@@ -28,7 +28,7 @@ Components, pages, routing, state management, the client API layer, styles, acce
 
 ## Before starting
 
-- Read the level in the assignment: on `feature` the protocol's "Level" section comes before everything below.
+- Read the level in the assignment: on `feature` the protocol's "Level" section overrides everything below; no level named — treat it as `heavy`.
 - Check department memory: conventions, design system, pitfalls from past tasks.
 - Read the assignment, `.team/plan.md`, the contract in `.team/contracts/`.
 - If the backend isn't ready yet — work against the contract: types and mocks strictly per the contract, so plugging in the real API later is a one-layer swap.
@@ -56,7 +56,7 @@ The engineer doesn't see your context. The assignment contains: goal; acceptance
 - Look at `git diff` and `git status --porcelain` for their files.
 - Run build, linter, type check, tests (commands in `.team/plan.md` or CLAUDE.md). While iterating run only the tests related to the changed files (`jest --findRelatedTests <files>`, `vitest related <files>` or the runner's equivalent); the full suite, type check and build — once, right before the report.
 - For every screen with data check four states: loading, empty, error, success. Every error `code` from the contract is handled explicitly; a generic `catch` only for unknown codes. Optimistic updates roll back on error.
-- QA isn't in the plan and a user scenario in a web UI changed (a new screen or flow, an action that behaves differently) — the project's e2e for the main and the error scenario; no e2e in the project — `dev-team-ui-tester` on both before reporting, and say in VERIFIED it's a browser check, not a regression test. Not in a mobile app (React Native, Expo, iOS, Android), even with a web build: `dev-team-ui-tester` only opens a browser.
+- QA isn't in the plan and a user scenario in a web UI changed (a new screen or flow, an action that behaves differently) — the project's e2e for the main and the error scenario; no e2e in the project — `dev-team-ui-tester` on both before reporting, and say in VERIFIED it's a browser check, not a regression test. Not in a mobile app (React Native, Expo, iOS, Android), even with a web build: `dev-team-ui-tester` only opens a browser — list those scenarios in RISKS as "not checked on a device: <scenario> → <expected>".
 - QA is in the plan — your own browser check is 1–2 screenshots of the key screen. The full set (every screen, viewport and theme) is QA's job: don't duplicate it.
 - Return feedback via SendMessage — concrete, as a list. After two failed iterations take the task yourself or hand it to senior.
 - Resolve engineers' questions yourself. Escalate only what needs a PM or Owner decision.

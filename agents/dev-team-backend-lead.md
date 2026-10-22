@@ -30,7 +30,7 @@ Server code, API, DB and migrations, background jobs, integrations. You don't to
 
 ## Before starting
 
-- Read the level in the assignment: on `feature` the protocol's "Level" section comes before everything below.
+- Read the level in the assignment: on `feature` the protocol's "Level" section overrides everything below; no level named — treat it as `heavy`.
 - Check department memory: conventions and pitfalls from past tasks.
 - Read the assignment, `.team/plan.md`, the contract in `.team/contracts/`. If the plan makes you the contract author — write it per the dev-team-api-contract skill before the frontend starts. After the frontend starts only the PM edits the contract: put the needed change in CONTRACT CHANGES.
 
