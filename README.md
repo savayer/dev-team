@@ -6,29 +6,16 @@ The team is installed once per machine, into `~/.claude`, as links to this repo.
 
 ## How it works
 
-```mermaid
-flowchart TD
-  owner(["Owner"]) -->|"/team task"| main["Main session · dispatcher<br>intake, queue, answers to the PM<br>tracker, final report"]
-  main -->|brief| pm
-  pm -.->|"report, questions"| main
-  main -.->|"report, your questions"| owner
-  subgraph wt["Task worktree"]
-    pm["head-pm · Opus<br>plan, level, QA decision, contract<br>small tasks itself · acceptance, PR, merge"]
-    pm -->|search| ex["explorer · Haiku<br>read-only code search<br>for head-pm and the leads"]
-    pm -->|"after the checks"| rv["reviewer · Opus<br>whole diff, edits nothing<br>security mode on risky diffs"]
-    pm --> be["backend-lead<br>API, DB, migrations<br>heavy: Opus · else Sonnet"]
-    pm --> fe["frontend-lead<br>UI, state, styles<br>heavy: Opus · else Sonnet"]
-    pm --> qa["qa-lead · when the plan needs it<br>acceptance criteria, e2e<br>feature: Sonnet · else Opus"]
-    be & fe & qa --> sr["senior · Opus<br>hard logic, auth"]
-    be & fe & qa --> md["middle · Sonnet<br>by example, tests"]
-    fe & qa --> ui["ui-tester · Sonnet<br>browser smoke test, Playwright"]
-  end
-  classDef opus stroke:#B0442A,stroke-width:2px
-  classDef sonnet stroke:#1F7563,stroke-width:2px
-  classDef haiku stroke:#5C6B16,stroke-width:2px
-  class pm,rv,sr opus
-  class md,ui sonnet
-  class ex haiku
+<p align="center"><img src="assets/team.png" width="476" alt="Owner → main session (dispatcher) → head-pm on Opus picks the level: small (head-pm codes it), feature (leads and QA on Sonnet), heavy (leads and QA on Opus) → QA if planned → reviewer on Opus → PR → merge in merge mode. Stuck: feature → heavy → Blocked → Owner."></p>
+
+Who launches whom, inside the task's worktree:
+
+```
+head-pm ─┬─ backend-lead  ── senior (Opus), middle (Sonnet)
+         ├─ frontend-lead ── senior, middle, ui-tester (Sonnet)
+         ├─ qa-lead       ── senior, middle, ui-tester
+         ├─ reviewer (Opus)  — whole diff, security mode on risky ones
+         └─ explorer (Haiku) — read-only code search, for the leads too
 ```
 
 Every agent in the worktree runs under the [guard](#good-to-know). The PM reads the code, picks the level and launches only the agents the plan needs:
@@ -40,11 +27,6 @@ Every agent in the worktree runs under the [guard](#good-to-know). The PM reads 
 | `heavy` | new project or module, architecture decision, cross-cutting refactor, a change to how auth, sessions or permissions work, payments, new personal data, file uploads, secrets, schema change, migration or one-off data operation, concurrency, bug with no hypothesis; or you wrote "full team" / "on Opus" | leads, senior, middle | Opus |
 
 The level only goes up: a `heavy` trigger found later, or a `feature` lead stuck for two rounds, and the PM relaunches that part on Opus. QA is always in the plan for auth, sessions, permissions, payments, personal data, file uploads, secrets, a backend↔frontend contract or a migration.
-
-```
-branch → plan (criteria, level, QA) → contract (backend + frontend) → code → acceptance
-       → QA (if planned) → review → rework, re-check, re-review → PR → merge (merge mode, green CI)
-```
 
 Rework gets two rounds per bug; on `feature` the level is raised first, then the bug goes under "Blocked".
 
@@ -133,7 +115,7 @@ The hook gives each isolated agent an empty slot; the PM turns it into a worktre
 
 - **Parallel tasks.** `TEAM_MAX_TASKS` in the `env` of `~/.claude/settings.json`, 3 when unset. Each task installs, builds and tests in its own worktree: raise it only where cores, memory and disk allow, then start a new session.
 - **Cost.** Seniority is `model` + `effort` in the agents' frontmatter; on `feature` the PM passes the Agent `model: "sonnet"` parameter to the leads and the QA lead. Cheaper still — senior on `sonnet`, leads on `effort: medium`. With `CLAUDE_CODE_SUBAGENT_MODEL` set, Claude Code before 2.1.251 ignores the parameter; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` or a mod's `agent.spawn` hook overrides it too.
-- **New department.** Copy `agents/dev-team-backend-lead.md` to `agents/dev-team-<name>-lead.md`, rewrite `name`, `description`, "Scope" and "Who does what", keep the `hooks:` block (it puts the guard on the agent). Add the department to `dev-team-head-pm.md` (first paragraph and "You launch only"), the "Hierarchy" line of `dev-team-protocol` and the [diagram](#how-it-works), then re-run the installer.
+- **New department.** Copy `agents/dev-team-backend-lead.md` to `agents/dev-team-<name>-lead.md`, rewrite `name`, `description`, "Scope" and "Who does what", keep the `hooks:` block (it puts the guard on the agent). Add the department to `dev-team-head-pm.md` (first paragraph and "You launch only"), the "Hierarchy" line of `dev-team-protocol` and the tree in [How it works](#how-it-works), then re-run the installer.
 - **Stack knowledge.** Skills in a project's `.claude/skills/`, or `skills/dev-team-*` here plus the agents' `skills:` field for every project. Only what the code doesn't show, under 60 lines.
 - **Deploy CLIs** the team must never run (`vercel --prod`, `fly deploy`, …): add them to `BANS` in `hooks/guard.mjs`, or to `permissions.deny` in a project's `.claude/settings.json`.
 
@@ -155,7 +137,7 @@ The hook gives each isolated agent an empty slot; the PM turns it into a worktre
 
 | Path | Purpose |
 | --- | --- |
-| `agents/` | The diagram's agents as `dev-team-<name>.md`; senior and middle are `dev-team-senior-engineer.md`, `dev-team-middle-engineer.md`. Leads break work down, delegate, review and integrate. `dev-team-explorer` replaces the built-in `Explore` so the guard covers it |
+| `agents/` | The tree's agents as `dev-team-<name>.md`; senior and middle are `dev-team-senior-engineer.md`, `dev-team-middle-engineer.md`. Leads break work down, delegate, review and integrate. `dev-team-explorer` replaces the built-in `Explore` so the guard covers it |
 | `rules/dev-team.md` | Team boundaries, loaded in every session (the `auto` mode classifier sees them too) |
 | `skills/team/` | `/team`: intake, queue, answers, final report. Owner-only |
 | `skills/dev-team-*/` | Shared protocol, backend ↔ frontend contract, auth and webhook checks |
@@ -166,5 +148,6 @@ The hook gives each isolated agent an empty slot; the PM turns it into a worktre
 | `hooks/merge-branch.mjs` | Merge mode's base for a checkout, shared by the guard, the PM and `/team`: the env in a single repo, the repo's own settings in a multi-repo workspace |
 | `templates/design-system/` | Design system skill template — copy into a project's `.claude/skills/design-system/` |
 | `install.mjs` | Links the team into `~/.claude` |
+| `assets/team.svg` | Source of the picture; `team.png` is it rendered at 2x |
 
 </details>
