@@ -2,8 +2,8 @@
 // PreToolUse guard of the dev team, wired into every dev-team-* agent's frontmatter (Bash, Read, Grep, Edit, Write).
 // Anyone else — the main session, other agents — passes untouched.
 //
-// Bans: publishing, image pushes, cluster and infrastructure changes, hook bypass, git stash, reading
-// secrets (.env*, *.pem, secrets/). Any git push or gh call must match the allowlist exactly.
+// Bans: publishing, image pushes, cluster and infrastructure changes, hook bypass, git stash, deleting files,
+// reading secrets (.env*, *.pem, secrets/). Any git push or gh call must match the allowlist exactly.
 // Push and PR creation: dev-team-head-pm only; push only the current team/* branch. Merge: dev-team-head-pm only, in
 // merge mode (TEAM_MERGE_BRANCH), its own team/* PR at the tested commit (see MERGE; a fast-forward in public repos)
 // and, with master|main over a develop base, a fast-forward of that merge to master|main (see FF_PUSH). Other merges,
@@ -33,6 +33,17 @@ const ANYONE = [
   full('gh auth status'), // no flags: --show-token would print the token
   full(`gh repo view${ARGS}`),
 ];
+// deleting files, even in temp folders: the Owner gets a permission prompt for it and the whole team waits
+const RM = String.raw`(?:/(?:usr/)?bin/)?(?:rm|rmdir|unlink)(?=$|[\s;&|<>()])`;
+const DELETES = [
+  // in command position: after a separator, a shell keyword, a wrapper with its options or VAR= prefixes
+  String.raw`(?:^|[;&|({\n]|\b(?:then|do|else|if|elif|while|until|command)\b|\b(?:sudo|nohup|env|xargs|timeout)(?:\s+-\S+(?:\s+[^-\s]\S*)?)*(?:\s+\d\S*)?)(?:\s*\w+=\S*)*\s*${RM}`,
+  String.raw`\bfind\b[^;&|\n]*\s(?:-delete(?=$|[\s;&|<>()])|-exec(?:dir)?\s+${RM})`,
+  String.raw`\bgit(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+clean\b(?![^;&|\n]*\s(?:-[A-Za-z]*n[A-Za-z]*|--dry-run)(?=\s|$))`,
+];
+const KEEP_FILES =
+  'is not needed — write scratch output to a new folder or over files with the same name, leftovers are fine; ' +
+  'a tracked file the task removes: git rm <file>';
 // anywhere in the command outside quotes, so wrappers and chains don't hide them and a commit message doesn't trip them
 const BANS = [
   [/\b(npm|pnpm|yarn|bun|cargo)\b[^;&|\n]*\spublish(?=\s|$)/, 'publishing packages'],
@@ -44,6 +55,7 @@ const BANS = [
   [/\bkubectl\b[^;&|\n]*\s(apply|delete|create|patch|edit|scale|rollout|exec)\b/, 'changing a cluster'],
   [/\bhelm\b[^;&|\n]*\s(install|upgrade|uninstall|rollback|push)\b/, 'changing a cluster'],
   [/\b(terraform|tofu|pulumi)\s+-*[a-z]/, 'changing infrastructure'],
+  [new RegExp(DELETES.join('|')), 'deleting files', KEEP_FILES],
 ];
 const SECRET = /(^|\/)\.env(\.(?!example$)[^/]*)?$|\.pem$|(^|\/)secrets(\/|$)/;
 // git (with any options) push, or the word gh anywhere: wrappers (command, timeout, env, nohup),
@@ -212,7 +224,7 @@ process.stdin.on('end', () => {
     process.exit(0);
   }
   const bare = cmd.replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, "''");
-  for (const [re, what] of BANS) if (re.test(bare)) deny(`${what} is not for the team — leave it to the Owner`);
+  for (const [re, what, why = 'is not for the team — leave it to the Owner'] of BANS) if (re.test(bare)) deny(`${what} ${why}`);
   const secret = cmd.split(/[\s'"`;&|<>()=$]+/).find((t) => SECRET.test(t));
   if (secret) deny(`${secret} may hold secrets — commands that touch it are the Owner's`);
   if (!TOUCHES.test(cmd)) process.exit(0);

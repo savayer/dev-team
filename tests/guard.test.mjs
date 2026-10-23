@@ -160,6 +160,30 @@ test('team agents: ordinary commands pass', () => {
   for (const cmd of cases) assert.equal(runHook(cmd, 'dev-team-middle-engineer', { cwd: repo.work }).status, 0, cmd);
 });
 
+test('team agents: deleting files is denied, git rm and docker rm pass', () => {
+  const denied = [
+    'rm -f /tmp/x/*', 'rm -rf build', 'cd shots && V=/tmp/v && rm -f $V/* && ls $V', 'ls; rm a', 'true || rm a',
+    'find . -name x -delete', 'find . -name x -exec rm {} +', 'ls | xargs rm', 'ls | xargs -0 rm', 'rmdir out', 'unlink a',
+    'if true; then rm a; fi', 'sudo rm a', 'command rm a', 'env rm a', 'env A=1 rm a', 'V=/tmp/v rm $V/*',
+    'timeout 5 rm a', 'nohup rm a', 'sudo -u root rm a', 'env -i rm a', 'timeout --signal TERM 5 rm a',
+    'find t -print0 | xargs -0 -I {} rm -f {}', 'find . -execdir rm {} +', 'find . -exec unlink {} +', '/bin/rm -f a',
+    '{ rm -f a; }', 'if rm -f a; then echo ok; fi', 'rm>out.log a', 'git clean -fdx', 'git -C sub clean -f',
+  ];
+  for (const cmd of denied) {
+    const r = runHook(cmd, 'dev-team-frontend-lead', { cwd: repo.work });
+    assert.equal(r.status, 2, cmd);
+    assert.match(r.stderr, /deleting files/, cmd);
+    assert.doesNotMatch(r.stderr, /leave it to the Owner/, cmd);
+  }
+  const passed = [
+    'git rm src/old.vue', 'git rm -r --cached x', 'docker rm -f c1', 'docker run --rm img', 'npm run rm-dist',
+    'git commit -m "rm dead code"', 'ls -la', 'grep -rn "rm -rf" src', 'cat confirm.md', 'command -v rm',
+    'timeout 60 npm test', 'env | grep rm', 'rsync -a --delete a/ b/', 'grep -e -delete README.md',
+    'find . -name -delete-cache', 'find . -exec rm-cache {} +', 'git clean -n', 'git clean -fdn', 'git clean --dry-run -d',
+  ];
+  for (const cmd of passed) assert.equal(runHook(cmd, 'dev-team-frontend-lead', { cwd: repo.work }).status, 0, cmd);
+});
+
 test('team agents: secrets are not read', () => {
   const read = (tool_name, tool_input) => runHook('', 'dev-team-backend-lead', { tool_name, tool_input }).status;
   for (const p of ['/p/.env', '/p/.env.local', '/p/apps/web/.env.production', '/p/key.pem', '/p/secrets/db.json', 'secrets/x']) {
