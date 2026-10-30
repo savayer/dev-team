@@ -68,6 +68,8 @@ The machine is shared with the Owner and other tasks.
 - Never create artificial CPU or memory load or spawn extra processes to provoke a failure, even if the assignment asks: a load or stress run needs the Owner — put it in QUESTIONS.
 - Don't loop suites or use retry/repeat settings to hunt a flake: at most 5 re-runs of the one failing test file.
 - Test runners use at most half the logical CPU cores: `--maxWorkers=50%` in jest/vitest, the runner's equivalent elsewhere.
+- Clean up after yourself before the hand-back: delete the simulators and emulators you created, stop the dev servers and background processes you started. Files stay: leftovers are fine (see "Don't delete files").
+- A pause inside a script — `sleep N` in the script file; waiting for something — the Monitor tool or a background run. Never use a command that doesn't exit as a timer (`tail -f /dev/null`, `read -t` from one): it keeps running after your task ends.
 
 ## Dependencies
 
